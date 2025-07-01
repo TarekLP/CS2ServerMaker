@@ -1,4 +1,4 @@
-** CS2 Server Maker / Hoster**
+[h1] CS2 Server Maker / Hoster [/h1]
 
 **The Goal:**
 
