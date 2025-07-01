@@ -99,11 +99,12 @@ class CS2ServerLauncher:
 
         # Master dictionary of all preset themes
         self.preset_themes = {
-            "Light Mode - Standard": self.default_light_theme_colors,
-            "Dark Mode - Standard": self.default_dark_theme_colors,
-            "Dark Mode - Purple accents": self.dark_purple_theme_colors,
-            "Dark Mode - Red accents": self.dark_red_theme_colors
+            "Light Mode": self.default_light_theme_colors,
+            "Dark Mode - Default": self.default_dark_theme_colors,
+            "Dark Mode - Purple": self.dark_purple_theme_colors,
+            "Dark Mode - Red": self.dark_red_theme_colors
         }
+        self.user_defined_themes = {} # New: To store themes created by the user
 
         # Variable to hold the name of the currently selected theme
         self.current_theme_name = tk.StringVar(value="Light Mode") # Initial selection
@@ -120,7 +121,7 @@ class CS2ServerLauncher:
         self.server_password = tk.StringVar(value="")
         self.rcon_password = tk.StringVar(value="")
 
-        # Combined Game Modes dropdown - REMOVED DANGER ZONE
+        # Combined Game Modes dropdown
         self.all_game_modes = {
             "Casual": ("0", "0"),
             "Competitive": ("0", "1"),
@@ -132,7 +133,7 @@ class CS2ServerLauncher:
         self.selected_game_mode_display = tk.StringVar(value="Casual")
         self.additional_args = tk.StringVar(value="-usercon -dedicated")
 
-        # --- Comprehensive CS2 Map List - REMOVED DANGER ZONE MAPS ---
+        # --- Comprehensive CS2 Map List ---
         self.cs2_maps = {
             "Active Duty/Premier": [
                 "de_ancient", "de_anubis", "de_dust2", "de_inferno",
@@ -161,7 +162,7 @@ class CS2ServerLauncher:
 
         self.credits_content = (
             "CS2 Dedicated Server Launcher\n"
-            "Version 1.2.1\n\n" # Updated version
+            "Version 1.2.1\n\n"
             "Developed by Tarek\n"
             "Special thanks to CS2's Inability to directly host Dedicated Servers.\n\n"
         )
@@ -193,14 +194,16 @@ class CS2ServerLauncher:
         self.theme_combobox = ttk.Combobox(
             top_frame,
             textvariable=self.current_theme_name,
-            values=list(self.preset_themes.keys()),
+            values=[], # Will be populated by _update_theme_combobox_values
             state="readonly",
             width=20
         )
         self.theme_combobox.pack(side="right", padx=5)
-        self.theme_combobox.set(self.current_theme_name.get()) # Set initial display value
         self.theme_combobox.bind("<<ComboboxSelected>>", self.apply_preset_theme)
-        self.add_tooltip(self.theme_combobox, "Select a predefined theme for the application.")
+        self.add_tooltip(self.theme_combobox, "Select a predefined or custom theme for the application.")
+        self._update_theme_combobox_values() # Initial population of combobox values after all themes are defined
+        self.theme_combobox.set(self.current_theme_name.get()) # Set initial display value
+
 
         # Input Frame
         input_frame = tk.LabelFrame(self.master, text="Server Parameters", padx=10, pady=10)
@@ -345,6 +348,22 @@ class CS2ServerLauncher:
         self.log_text.config(yscrollcommand=self.log_text_scroll.set)
         self.add_tooltip(self.log_text, "Displays real-time output and logs from the CS2 dedicated server.")
 
+    def _update_theme_combobox_values(self):
+        """Updates the values in the theme combobox to include all preset and user-defined themes."""
+        combined_theme_names = sorted(list(self.preset_themes.keys()) + list(self.user_defined_themes.keys()))
+        self.theme_combobox["values"] = combined_theme_names
+        # Ensure the selected theme is still in the list, or default
+        if self.current_theme_name.get() not in combined_theme_names:
+            if "Light Mode" in combined_theme_names:
+                self.current_theme_name.set("Light Mode")
+                self.theme_combobox.set("Light Mode")
+            elif combined_theme_names: # Fallback to first available if Light Mode not there
+                self.current_theme_name.set(combined_theme_names[0])
+                self.theme_combobox.set(combined_theme_names[0])
+            else: # No themes at all (shouldn't happen with default presets)
+                self.current_theme_name.set("")
+                self.theme_combobox.set("")
+
     def apply_theme(self, theme_config_dict):
         """Applies the specified theme (color dictionary) to all widgets."""
         self.active_theme_config = theme_config_dict.copy() # Store a mutable copy for settings
@@ -422,13 +441,23 @@ class CS2ServerLauncher:
         self.master.update_idletasks() # Final update
 
     def apply_preset_theme(self, event=None):
-        """Applies the theme selected from the preset dropdown."""
+        """Applies the theme selected from the preset dropdown (either default or user-defined)."""
         selected_theme_name = self.current_theme_name.get()
+        
         theme_config_dict = self.preset_themes.get(selected_theme_name)
+        if not theme_config_dict: # Not found in default presets, check user-defined
+            theme_config_dict = self.user_defined_themes.get(selected_theme_name)
+
         if theme_config_dict:
-            self.apply_theme(theme_config_dict)
+            # We want to apply a COPY of the preset/user-defined theme,
+            # so modifications in settings don't change the original preset/user-defined definition.
+            self.apply_theme(theme_config_dict.copy()) # Pass a copy
         else:
-            self.append_to_log(f"Warning: Theme '{selected_theme_name}' not found in presets.")
+            self.append_to_log(f"Warning: Theme '{selected_theme_name}' not found in any theme collection. Falling back to Light Mode.")
+            # Fallback to default light theme if selected theme is not found
+            self.current_theme_name.set("Light Mode")
+            self.theme_combobox.set("Light Mode")
+            self.apply_theme(self.preset_themes["Light Mode"].copy())
 
     def show_credits(self):
         """Displays the credits information in a message box."""
@@ -500,8 +529,17 @@ class CS2ServerLauncher:
             create_color_picker_row(settings_frame, display_name, key, current_theme_for_settings.get(key, "#000000")) # Provide a fallback color
 
         def reset_colors():
-            # Reset the active theme to its original preset colors
-            original_preset_colors = self.preset_themes[self.current_theme_name.get()].copy()
+            # Get the original preset colors (either from default or user-defined)
+            original_preset_colors = None
+            selected_theme_name_for_reset = self.current_theme_name.get()
+            if selected_theme_name_for_reset in self.preset_themes:
+                original_preset_colors = self.preset_themes[selected_theme_name_for_reset].copy()
+            elif selected_theme_name_for_reset in self.user_defined_themes:
+                original_preset_colors = self.user_defined_themes[selected_theme_name_for_reset].copy()
+            else:
+                messagebox.showwarning("Error", "Could not find original theme colors to reset for the current theme.")
+                return
+
             self.active_theme_config.update(original_preset_colors) # Update the active config with original preset colors
             self.apply_theme(self.active_theme_config) # Re-apply the reset active theme
 
@@ -528,9 +566,68 @@ class CS2ServerLauncher:
                                 activebackground=current_theme_for_settings["active_button_bg"], activeforeground=current_theme_for_settings["button_fg"])
         reset_button.pack(pady=10)
 
+        # Add "Save Current Theme As" button
+        save_theme_button = tk.Button(settings_window, text="Save Current Theme As...", command=self.save_current_theme_as_preset,
+                                bg=current_theme_for_settings["button_bg"], fg=current_theme_for_settings["button_fg"],
+                                activebackground=current_theme_for_settings["active_button_bg"], activeforeground=current_theme_for_settings["button_fg"])
+        save_theme_button.pack(pady=5) # Below Reset button
+
         # Handle closing of the settings window
         settings_window.protocol("WM_DELETE_WINDOW", settings_window.destroy)
 
+    def save_current_theme_as_preset(self):
+        """Prompts user for a name and saves the current active theme as a new preset."""
+        name_window = tk.Toplevel(self.master)
+        name_window.title("Save Theme As")
+        name_window.geometry("300x120")
+        name_window.transient(self.master)
+        name_window.grab_set()
+
+        name_window.config(bg=self.active_theme_config["bg"])
+
+        label = tk.Label(name_window, text="Enter a name for your theme:", 
+                         bg=self.active_theme_config["frame_bg"], fg=self.active_theme_config["frame_fg"])
+        label.pack(pady=10)
+
+        theme_name_var = tk.StringVar()
+        name_entry = tk.Entry(name_window, textvariable=theme_name_var, width=30,
+                              bg=self.active_theme_config["entry_bg"], fg=self.active_theme_config["entry_fg"], insertbackground=self.active_theme_config["entry_fg"])
+        name_entry.pack(pady=5)
+        name_entry.focus_set()
+
+        def confirm_save():
+            new_theme_name = theme_name_var.get().strip()
+            if not new_theme_name:
+                messagebox.showwarning("Input Error", "Theme name cannot be empty.")
+                return
+            
+            # Combine preset and user-defined themes for validation
+            all_theme_names = list(self.preset_themes.keys()) + list(self.user_defined_themes.keys())
+            if new_theme_name in all_theme_names:
+                messagebox.showwarning("Name Exists", f"A theme named '{new_theme_name}' already exists. Please choose a different name.")
+                return
+
+            # Save a copy of the current active theme config
+            self.user_defined_themes[new_theme_name] = self.active_theme_config.copy()
+            
+            # Update combobox values
+            self._update_theme_combobox_values()
+            
+            # Set the new theme as current and apply it
+            self.current_theme_name.set(new_theme_name)
+            self.theme_combobox.set(new_theme_name) # Update combobox display
+            self.apply_theme(self.user_defined_themes[new_theme_name]) # Re-apply to ensure any new widget styling is picked up
+
+            self.append_to_log(f"Theme '{new_theme_name}' saved successfully.")
+            messagebox.showinfo("Theme Saved", f"Your theme '{new_theme_name}' has been saved.")
+            name_window.destroy()
+
+        save_button = tk.Button(name_window, text="Save", command=confirm_save,
+                               bg=self.active_theme_config["button_bg"], fg=self.active_theme_config["button_fg"],
+                               activebackground=self.active_theme_config["active_button_bg"], activeforeground=self.active_theme_config["active_button_fg"])
+        save_button.pack(pady=10)
+
+        name_window.protocol("WM_DELETE_WINDOW", name_window.destroy)
 
     def browse_exe_path(self):
         filepath = filedialog.askopenfilename(
@@ -826,6 +923,8 @@ class CS2ServerLauncher:
                 stderr=subprocess.STDOUT, # Redirect stderr to stdout for combined log
                 text=False, # Output is bytes, needs decoding
                 creationflags=creation_flags
+                # If you want to enable sending commands via stdin, add:
+                # stdin=subprocess.PIPE
             )
             self.append_to_log(f"Starting server with command: {' '.join(shlex.quote(arg) for arg in full_command)}")
             self.append_to_log(f"Working directory set to: {server_dir}")
@@ -924,7 +1023,8 @@ class CS2ServerLauncher:
             "selected_game_mode_display": self.selected_game_mode_display.get(),
             "additional_args": self.additional_args.get(),
             "current_theme_name": self.current_theme_name.get(), # Save the selected preset name
-            "active_theme_config_colors": self.active_theme_config # Save the currently active (potentially customized) colors
+            "active_theme_config_colors": self.active_theme_config, # Save the currently active (potentially customized) colors
+            "user_defined_themes": self.user_defined_themes # Save user-defined themes
         }
 
         filepath = filedialog.asksaveasfilename(
@@ -968,9 +1068,12 @@ class CS2ServerLauncher:
                 # Load theme preference and colors
                 loaded_theme_name = config_data.get("current_theme_name", "Light Mode")
                 loaded_active_colors = config_data.get("active_theme_config_colors", None)
+                loaded_user_defined_themes = config_data.get("user_defined_themes", {}) # Load user-defined themes
+
+                self.user_defined_themes = loaded_user_defined_themes # Update user-defined themes dictionary
+                self._update_theme_combobox_values() # Refresh combobox with newly loaded user themes
 
                 self.current_theme_name.set(loaded_theme_name)
-                # Ensure the combobox displays the loaded theme name
                 self.theme_combobox.set(loaded_theme_name) 
 
                 if loaded_active_colors:
