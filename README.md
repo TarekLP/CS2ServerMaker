@@ -10,3 +10,7 @@ done and setup, Game setup is also quite simple since its all just a list of Dro
 - Automatic Workshop subscription search (to host custom maps)
 - A more refined UI
 - More optimizations
+
+**Dependencies**
+
+- bcolor class from blender (copied from the blender repo, in code/cmdColors.py)
