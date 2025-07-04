@@ -1,10 +1,9 @@
 
-from http import client
-from socket import gaierror
 from sys import argv
 from cmdColors import bcolors
+from mapDataWrapper import MapDataWrapper
 from exceptions import CollectionIsNotPublicException, CollectionNotFoundException
-from dataStructs import SteamCollection, SteamFileElement
+from dataStructs import CSMap, SteamCollection, SteamFileElement
 from steamWebAPI import SteamWebAPI
 
 #
@@ -121,6 +120,113 @@ class UnitTests:
 
         return True
 
+    @staticmethod
+    def TEST_ConfigDeserializeSteamCollectionsData() -> bool:
+        
+        _data = {"mapDataWrapper_collections": [
+            {
+                "id": 3513758895,
+                "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3513758895",
+                "name": "Test Collection - CS2 Server Starter",
+                "mapIds": []
+            }
+        ]}
+
+        _expectedData = SteamCollection(
+            _data["mapDataWrapper_collections"][0]["id"],
+            _data["mapDataWrapper_collections"][0]["url"],
+            _data["mapDataWrapper_collections"][0]["name"],
+            _data["mapDataWrapper_collections"][0]["mapIds"])
+
+        MapDataWrapper.collections = MapDataWrapper.DeserializeCollections(_data["mapDataWrapper_collections"])
+
+        if(MapDataWrapper.collections[0].ToDict() != _expectedData.ToDict()):
+            print(MapDataWrapper.collections[0].ToDict())
+            print(_expectedData.ToDict())
+            return False
+        
+        return True
+    
+    @staticmethod
+    def TEST_ConfigSerializeSteamCollectionsData() -> bool:
+        
+        _expectedData = [
+            {
+                "id": 3513758895,
+                "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3513758895",
+                "name": "Test Collection - CS2 Server Starter",
+                "mapIds": []
+            }
+        ]
+
+        initialData = [SteamCollection(
+            _expectedData[0]["id"],
+            _expectedData[0]["url"],
+            _expectedData[0]["name"],
+            _expectedData[0]["mapIds"])]
+
+        MapDataWrapper.collections = initialData
+
+        _data = MapDataWrapper.SerializeCollections()
+
+        if(_data != _expectedData):
+            print(_data)
+            print(_expectedData)
+            return False
+        
+        return True
+
+    @staticmethod
+    def TEST_ConfigDeserializeManuallyAddedMaps() -> bool:
+        exceptedData = CSMap(100, 0, "Foo Map Test", tags=["CS2", "Demolition"])
+
+        csmapToDict = [exceptedData.ToDict()]
+
+        MapDataWrapper.manuallyAddedMaps = MapDataWrapper.DeserializeManuallyAddedMaps(csmapToDict)
+
+        
+        if(MapDataWrapper.manuallyAddedMaps[0].ToDict() != exceptedData.ToDict()):
+            print(MapDataWrapper.manuallyAddedMaps[0].ToDict())
+            print(exceptedData.ToDict())
+            return False
+
+        return True
+    
+    @staticmethod
+    def TEST_ConfigSerializeManuallyAddedMaps() -> bool:
+        csmap = CSMap(100, 0, "Foo Map Test", tags=["CS2", "Demolition"])
+
+        expectedData = [csmap.ToDict()]
+
+        MapDataWrapper.manuallyAddedMaps = [csmap]
+
+        data = MapDataWrapper.SerializeManuallyAddedMaps()
+        
+        if(data != expectedData):
+            print(data)
+            print(expectedData)
+            return False
+
+        return True
+
+    @staticmethod
+    def TEST_ConfigSaveMapDataWrapper() -> bool:
+        
+        UnitTests.TEST_ConfigDeserializeManuallyAddedMaps()
+        UnitTests.TEST_ConfigDeserializeSteamCollectionsData()
+
+        expectedData = {'mapDataWrapper_isFeatureActivated': True, 'mapDataWrapper_collections': [{'id': 3513758895, 'url': 'https://steamcommunity.com/sharedfiles/filedetails/?id=3513758895', 'name': 'Test Collection - CS2 Server Starter', 'mapIds': []}], 'mapDataWrapper_manuallyAddedMaps': [{'publishedfileid': 100, 'creator': 0, 'title': 'Foo Map Test', 'description': '', 'tags': ['CS2', 'Demolition']}]}
+        gatheredData = {}
+
+        MapDataWrapper.SaveConfigPtr(gatheredData)
+
+        if(gatheredData != expectedData):
+            print(gatheredData)
+            print(expectedData)
+            return False
+
+        return True
+    
 
 if __name__ == "__main__":
     print ("CS2 Server Maker - Unit Tests")
@@ -134,13 +240,79 @@ if __name__ == "__main__":
         print (" - GetCollectionDetails")
         print (" - GetNonPublicCollectionDetails")
         print (" - CollectionNotFound")
-        exit(1)
+        print (" - GetPublishedFileDetails")
+        print (" - GetMapsFromCollection")
+        exit(1000)
 
     #
     # CS2 SERVER TESTS
     #
 
-    # TODO
+    if argv[1] == "ConfigDeserializeSteamCollectionsData":
+        testVal = UnitTests.TEST_ConfigDeserializeSteamCollectionsData()
+
+        print ("\033[92m") if testVal else print ("\033[91m")
+
+        print ("TEST_ConfigDeserializeSteamCollectionsData() ::", testVal)
+
+        print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+        if testVal :
+            exit(0)
+        else:
+            exit(1)
+
+    if argv[1] == "ConfigSerializeSteamCollectionsData":
+        testVal = UnitTests.TEST_ConfigSerializeSteamCollectionsData()
+
+        print ("\033[92m") if testVal else print ("\033[91m")
+
+        print ("TEST_ConfigSerializeSteamCollectionsData() ::", testVal)
+
+        print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+        if testVal :
+            exit(0)
+        else:
+            exit(1)
+
+    if argv[1] == "ConfigDeserializeManuallyAddedMaps":
+        testVal = UnitTests.TEST_ConfigDeserializeManuallyAddedMaps()
+
+        print ("\033[92m") if testVal else print ("\033[91m")
+
+        print ("TEST_ConfigDeserializeManuallyAddedMaps() ::", testVal)
+
+        print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+        if testVal :
+            exit(0)
+        else:
+            exit(1)
+
+    if argv[1] == "ConfigSerializeManuallyAddedMaps":
+        testVal = UnitTests.TEST_ConfigSerializeManuallyAddedMaps()
+
+        print ("\033[92m") if testVal else print ("\033[91m")
+
+        print ("TEST_ConfigSerializeManuallyAddedMaps() ::", testVal)
+
+        print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+        if testVal :
+            exit(0)
+        else:
+            exit(1)
+
+    if argv[1] == "ConfigSaveMapDataWrapper":
+        testVal = UnitTests.TEST_ConfigSaveMapDataWrapper()
+
+        print ("\033[92m") if testVal else print ("\033[91m")
+
+        print ("TEST_ConfigSaveMapDataWrapper() ::", testVal)
+
+        print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+        if testVal :
+            exit(0)
+        else:
+            exit(1)
+
 
     #
     # STEAM API TESTS

@@ -5,7 +5,7 @@ import os
 
 from tools import Tools
 from exceptions import CollectionIsNotPublicException, CollectionNotFoundException, SteamFileElementIsAnIncompatibleMap, SteamFileElementIsNotACS2Item, SteamFileElementIsNotPublicException, SteamFileElementNotFoundException
-from dataStructs import CSMap, SteamCollection, SteamFileElement
+from dataStructs import SteamCollection, SteamFileElement
 
 #
 #   STEAM WEB API
