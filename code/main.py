@@ -3,48 +3,13 @@ from tkinter import messagebox, filedialog, ttk, colorchooser
 import subprocess
 import os
 import threading
-import socket
 import time
-import re
 import shlex
 import json
 
-class ToolTip:
-    """
-    A simple tooltip class for Tkinter widgets.
-    """
-    def __init__(self, widget, text):
-        self.widget = widget
-        self.text = text
-        self.tip_window = None
-        self.id = None
-        self.x = 0
-        self.y = 0
-        self.widget.bind("<Enter>", self.show_tip)
-        self.widget.bind("<Leave>", self.hide_tip)
-
-    def show_tip(self, event=None):
-        "Display text in tooltip window"
-        if self.tip_window or not self.text:
-            return
-        x, y, _, _ = self.widget.bbox("insert")
-        x += self.widget.winfo_rootx() + 20 # Offset to the right
-        y += self.widget.winfo_rooty() + 20 # Offset downwards
-
-        self.tip_window = tk.Toplevel(self.widget)
-        self.tip_window.wm_overrideredirect(True) # Removes window decorations
-        self.tip_window.wm_geometry(f"+{x}+{y}")
-
-        label = tk.Label(self.tip_window, text=self.text, background="#FFFFCC",
-                         relief="solid", borderwidth=1,
-                         font=("tahoma", "8", "normal"))
-        label.pack(padx=1)
-
-    def hide_tip(self, event=None):
-        "Hide the tooltip window"
-        if self.tip_window:
-            self.tip_window.destroy()
-        self.tip_window = None
+# Import classes and functions from new files
+from tooltip import ToolTip
+from server_utils import auto_detect_cs2_path, detect_ip_address, _parse_appmanifest_acf, _parse_library_folders_vdf, _find_steam_installations
 
 
 class CS2ServerLauncher:
@@ -119,10 +84,10 @@ class CS2ServerLauncher:
         self.user_defined_themes = {} # New: To store themes created by the user
 
         # Variable to hold the name of the currently selected theme
-        self.current_theme_name = tk.StringVar(value="Light Mode") # Initial selection
-
+        self.current_theme_name = tk.StringVar(value="Dark Mode - Default") # Initial selection changed to Dark Mode
+        
         # Reference to the currently active theme config (can be a user-modified copy of a preset)
-        self.active_theme_config = self.preset_themes["Light Mode"].copy() # Initialize with a copy of light theme
+        self.active_theme_config = self.preset_themes["Dark Mode - Default"].copy() # Initialize with a copy of Dark Mode
 
         # --- Variables for input fields ---
         self.cs2_exe_path = tk.StringVar(value="")
@@ -235,7 +200,7 @@ class CS2ServerLauncher:
         self.ip_entry = tk.Entry(self.server_setup_frame, textvariable=self.pc_ip_address)
         self.ip_entry.grid(row=row, column=1, pady=2, padx=5, sticky="ew")
         self.add_tooltip(self.ip_entry, "Your PC's local IP address that the server will bind to. Leave blank to auto-detect.")
-        self.detect_ip_button = tk.Button(self.server_setup_frame, text="Detect IP", command=self.detect_ip_address)
+        self.detect_ip_button = tk.Button(self.server_setup_frame, text="Detect IP", command=self._detect_ip_address_gui)
         self.detect_ip_button.grid(row=row, column=2, columnspan=2, pady=2, padx=5, sticky="ew")
         self.add_tooltip(self.detect_ip_button, "Attempt to automatically detect your local IP address.")
 
@@ -443,10 +408,10 @@ class CS2ServerLauncher:
         self.theme_combobox["values"] = combined_theme_names
         # Ensure the selected theme is still in the list, or default
         if self.current_theme_name.get() not in combined_theme_names:
-            if "Light Mode" in combined_theme_names:
-                self.current_theme_name.set("Light Mode")
-                self.theme_combobox.set("Light Mode")
-            elif combined_theme_names: # Fallback to first available if Light Mode not there
+            if "Dark Mode - Default" in combined_theme_names: # Changed to prefer Dark Mode
+                self.current_theme_name.set("Dark Mode - Default")
+                self.theme_combobox.set("Dark Mode - Default")
+            elif combined_theme_names: # Fallback to first available if Dark Mode not there
                 self.current_theme_name.set(combined_theme_names[0])
                 self.theme_combobox.set(combined_theme_names[0])
             else: # No themes at all (shouldn't happen with default presets)
@@ -566,11 +531,11 @@ class CS2ServerLauncher:
             # so modifications in settings don't change the original preset/user-defined definition.
             self.apply_theme(theme_config_dict.copy()) # Pass a copy
         else:
-            self.append_to_log(f"Warning: Theme '{selected_theme_name}' not found in any theme collection. Falling back to Light Mode.")
-            # Fallback to default light theme if selected theme is not found
-            self.current_theme_name.set("Light Mode")
-            self.theme_combobox.set("Light Mode")
-            self.apply_theme(self.preset_themes["Light Mode"].copy())
+            self.append_to_log(f"Warning: Theme '{selected_theme_name}' not found in any theme collection. Falling back to Dark Mode - Default.")
+            # Fallback to default dark theme if selected theme is not found
+            self.current_theme_name.set("Dark Mode - Default")
+            self.theme_combobox.set("Dark Mode - Default")
+            self.apply_theme(self.preset_themes["Dark Mode - Default"].copy())
 
     def show_credits(self):
         """Displays the credits information in a message box."""
@@ -758,121 +723,22 @@ class CS2ServerLauncher:
             self.append_to_log(f"CS2 executable path set to: {filepath}")
 
     def auto_detect_cs2_path(self):
-        self.append_to_log("Attempting to auto-detect CS2 server executable...")
-        steam_install_paths = self._find_steam_installations()
-        found_path = None
-
-        if not steam_install_paths:
-            self.append_to_log("No common Steam installation paths found. Please ensure Steam is installed.")
-
-        for steam_path in steam_install_paths:
-            library_folders_path = os.path.join(steam_path, "steamapps", "libraryfolders.vdf")
-            if os.path.exists(library_folders_path):
-                self.append_to_log(f"Found libraryfolders.vdf at: {library_folders_path}")
-                library_paths = self._parse_library_folders_vdf(library_folders_path)
-                library_paths.insert(0, steam_path) # Add the main Steam path as a primary library
-
-                for lib_path in library_paths:
-                    cleaned_lib_path = lib_path.strip('"')
-                    
-                    cs2_appmanifest_path = os.path.join(cleaned_lib_path, "steamapps", "appmanifest_730.acf")
-                    if os.path.exists(cs2_appmanifest_path):
-                        self.append_to_log(f"Found appmanifest_730.acf at: {cs2_appmanifest_path}")
-                        cs2_install_dir = self._parse_appmanifest_acf(cs2_appmanifest_path)
-                        if cs2_install_dir:
-                            potential_exe_path = os.path.join(
-                                cleaned_lib_path,
-                                "steamapps",
-                                "common",
-                                cs2_install_dir,
-                                "game",
-                                "bin",
-                                "win64",
-                                "cs2.exe"
-                            )
-                            if os.path.exists(potential_exe_path):
-                                found_path = potential_exe_path
-                                break # Found it, exit inner loop
-                if found_path:
-                    break # Found it, exit outer loop
-
+        # Use the utility function from server_utils
+        found_path = auto_detect_cs2_path(log_callback=self.append_to_log)
         if found_path:
             self.cs2_exe_path.set(found_path)
-            self.append_to_log(f"Auto-detected CS2 executable: {found_path}")
             messagebox.showinfo("Auto-Detection Complete", f"CS2 executable found at:\n{found_path}")
         else:
-            self.append_to_log("Could not auto-detect CS2 executable. Please browse manually.")
             messagebox.showwarning("Auto-Detection Failed", "Could not automatically find CS2 executable.\nPlease browse for it manually.")
 
-    def _find_steam_installations(self):
-        paths = []
-        # Common Steam installation paths
-        program_files_x86 = os.environ.get("ProgramFiles(x86)")
-        if program_files_x86:
-            potential_path = os.path.join(program_files_x86, "Steam")
-            if os.path.exists(potential_path):
-                paths.append(potential_path)
-
-        program_files = os.environ.get("ProgramFiles")
-        if program_files and program_files_x86 != program_files: # Avoid duplicating if ProgramFiles(x86) is same as ProgramFiles
-            potential_path = os.path.join(program_files, "Steam")
-            if os.path.exists(potential_path):
-                paths.append(potential_path)
-        
-        # Check specific drive letters and common Program Files locations
-        drive_letters = ['C', 'D', 'E', 'F']
-        install_folders = ["Steam", "Program Files\\Steam", "Program Files (x86)\\Steam"]
-
-        for drive in drive_letters:
-            for folder in install_folders:
-                potential_path = os.path.join(f"{drive}:\\", folder)
-                if os.path.exists(potential_path):
-                    paths.append(potential_path)
-
-        return list(set(paths)) # Return unique paths
-
-    def _parse_library_folders_vdf(self, vdf_path):
-        library_paths = []
-        try:
-            with open(vdf_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            # Regex to find "path" values within numerical sections (library folders)
-            paths_found = re.findall(r'"\d+"\s*{\s*"path"\s*"(.*?)"', content, re.DOTALL)
-            for p in paths_found:
-                # Normalize paths: replace double backslashes with single, forward slashes with os.sep
-                cleaned_path = p.replace("\\\\", "\\").replace("/", os.sep)
-                if os.path.exists(cleaned_path):
-                    library_paths.append(cleaned_path)
-                else:
-                    self.append_to_log(f"Warning: Found VDF library path that does not exist: {cleaned_path}")
-        except Exception as e:
-            self.append_to_log(f"Error parsing libraryfolders.vdf ({vdf_path}): {e}")
-        return library_paths
-
-    def _parse_appmanifest_acf(self, acf_path):
-        install_dir = None
-        try:
-            with open(acf_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            match = re.search(r'"installdir"\s*"(.*?)"', content)
-            if match:
-                install_dir = match.group(1)
-        except Exception as e:
-            self.append_to_log(f"Error parsing appmanifest_730.acf ({acf_path}): {e}")
-        return install_dir
-
-    def detect_ip_address(self):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            # Connect to a public IP to get the local IP used for outgoing connections
-            s.connect(("8.8.8.8", 80))
-            ip_address = s.getsockname()[0]
-            s.close()
+    def _detect_ip_address_gui(self):
+        # Use the utility function from server_utils
+        ip_address = detect_ip_address(log_callback=self.append_to_log)
+        if ip_address:
             self.pc_ip_address.set(ip_address)
-            self.append_to_log(f"Detected IP address: {ip_address}")
-        except Exception as e:
-            messagebox.showerror("IP Detection Error", f"Could not detect IP address: {e}\nPlease enter it manually.")
-            self.append_to_log(f"Error detecting IP address: {e}")
+        else:
+            messagebox.showerror("IP Detection Error", "Could not detect IP address.\nPlease enter it manually.")
+
 
     def append_to_log(self, message):
         self.log_text.config(state="normal")
@@ -1147,7 +1013,7 @@ class CS2ServerLauncher:
         }
 
         filepath = filedialog.asksaveasfilename(
-            defaultextextension=".json",
+            defaultextension=".json", # Re-added, if it was causing issues previously, it might be due to a specific Tkinter version or environment.
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
             title="Save Server Configuration"
         )
@@ -1185,7 +1051,7 @@ class CS2ServerLauncher:
                 self.additional_args.set(config_data.get("additional_args", "-usercon -dedicated"))
                 
                 # Load theme preference and colors
-                loaded_theme_name = config_data.get("current_theme_name", "Light Mode")
+                loaded_theme_name = config_data.get("current_theme_name", "Dark Mode - Default") # Changed default to Dark Mode
                 loaded_active_colors = config_data.get("active_theme_config_colors", None)
                 loaded_user_defined_themes = config_data.get("user_defined_themes", {}) # Load user-defined themes
 
