@@ -15,6 +15,13 @@ class MapDataWrapper:
     manuallyAddedMaps: list = []    # Saved in preset.json
 
     @staticmethod
+    def Clear()->None:
+        MapDataWrapper.isFeatureActivated = True
+        MapDataWrapper.collections = []
+        MapDataWrapper.mapsFromCollectionCache = []
+        MapDataWrapper.manuallyAddedMaps = []
+
+    @staticmethod
     def SerializeCollections()->list:
         _col = []
 
@@ -69,7 +76,7 @@ class MapDataWrapper:
             if("publishedfileid" not in csmap.keys()):
                 continue
 
-            _c = CSMap(csmap["publishedfileid"],  csmap["creator"] or 0,  csmap["title"] or "",  csmap["description"] or "",  csmap["tags"] or [])
+            _c = CSMap(csmap["publishedfileid"],  csmap["creator"] or 0,  csmap["title"] or "",  csmap["tags"] or [])
             _col.append(_c)
         
         return _col
@@ -166,9 +173,9 @@ class MapDataWrapper:
                 ptr_error.append({"CollectionAllreadyAdded":"The collection with id "+str(collectionId)+" has already been added to the steam collection list, wont register again"})
                 return False
 
-            _col = SteamWebAPI.GetCollectionsDetails(1, collectionId, False)
+            _col = SteamWebAPI.GetCollectionsDetails(1, [collectionId], False)
 
-            MapDataWrapper.collections.append(_col)
+            MapDataWrapper.collections.append(_col[0])
 
             return True
 

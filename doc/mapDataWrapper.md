@@ -13,9 +13,13 @@ It uses static variables that can be accessed by everywhere and handle the gathe
 
 ## How to use
 
+**reset the class**
+
+to reset the class, call `MapDataWrapper.Clear()` 
+
 **initializeing the class**
 
-to initialize the class, call `LoadFromConfig`
+to initialize the class, call `MapDataWrapper.LoadFromConfig()`
 
 ```py
 @staticmethod
@@ -43,7 +47,7 @@ MapDataWrapper.LoadFromConfig(configFile)
 
 **adding new steam collection**
 
-to add a new steam collection, call the `RegisterNewCollection`
+to add a new steam collection, call the `MapDataWrapper.RegisterNewCollection()`
 
 this method does not add dupplicates and can handle invalid collections (hidden or non existing)
 

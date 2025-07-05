@@ -171,7 +171,7 @@ class SteamWebAPI:
             elif(Tools.SteamFileHasTag(element["tags"], "Weapon Finish")):
                 fileType = "Weapon Finish"
 
-            _steamElement = SteamFileElement(element["publishedfileid"], element["creator"], element["title"], element["description"], element["tags"], fileType)
+            _steamElement = SteamFileElement(element["publishedfileid"], element["creator"], element["title"], element["tags"], fileType)
             steamElementsList.append(_steamElement)
 
         return steamElementsList

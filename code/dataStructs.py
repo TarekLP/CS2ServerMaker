@@ -30,17 +30,15 @@ class CSMap:
     publishedfileid: int    = 0
     creator: int            = 0
     title: str              = ""
-    description: str        = ""
     tags: list              = []
-    def __init__(self, publishedfileid: int = 0, creator: int = 0, title: str = "", description: str = "", tags: list = []):
+    def __init__(self, publishedfileid: int = 0, creator: int = 0, title: str = "", tags: list = []):
         self.publishedfileid    = publishedfileid
         self.creator            = creator
         self.title              = title
-        self.description        = description
         self.tags               = tags
 
     def ToDict(self) -> map:
-        return {"publishedfileid":self.publishedfileid, "creator":self.creator, "title":self.title, "description":self.description, "tags":self.tags }
+        return {"publishedfileid":self.publishedfileid, "creator":self.creator, "title":self.title, "tags":self.tags }
 
 class SteamFileElement:
     """
@@ -50,21 +48,19 @@ class SteamFileElement:
     publishedfileid: int    = 0
     creator: int            = 0
     title: str              = ""
-    description: str        = ""
     tags: list              = []
     fileType: str           = ""
 
-    def __init__(self, publishedfileid: int = 0, creator: int = 0, title: str = "", description: str = "", tags: list = [], fileType: str = "Unknown"):
+    def __init__(self, publishedfileid: int = 0, creator: int = 0, title: str = "", tags: list = [], fileType: str = "Unknown"):
         self.publishedfileid    = publishedfileid
         self.creator            = creator
         self.title              = title
-        self.description        = description
         self.tags               = tags
         self.fileType               = fileType
 
     def ToDict(self) -> map:
-        return {"publishedfileid":self.publishedfileid, "creator":self.creator, "title":self.title, "description":self.description, "tags":self.tags , "fileType":self.fileType }
+        return {"publishedfileid":self.publishedfileid, "creator":self.creator, "title":self.title, "tags":self.tags , "fileType":self.fileType }
 
     def ToCSMap(self) -> CSMap:
-        _map = CSMap(self.publishedfileid, self.creator, self.title, self.description, self.tags)
+        _map = CSMap(self.publishedfileid, self.creator, self.title, self.tags)
         return _map
