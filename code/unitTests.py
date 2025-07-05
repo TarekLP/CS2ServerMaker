@@ -1,4 +1,5 @@
 
+from socket import gaierror
 from sys import argv
 from cmdColors import bcolors
 from mapDataWrapper import MapDataWrapper
@@ -24,9 +25,10 @@ class UnitTests:
             print (" - ConfigDeserializeManuallyAddedMaps")
             print (" - ConfigSerializeManuallyAddedMaps")
             print (" - ConfigSaveMapDataWrapper")
-            print (" - ConfigRegisterNewCollection")
+            print (" - ConfigRegisterNewCollection (Requires Internet)")
+            print (" - ConfigCacheCollections (Requires Internet)")
             print (" ")
-            print ("-- Steam Tests --")
+            print ("-- Steam Tests -- (Requires Internet)")
             print (" - WebConnection")
             print (" - GetCollectionDetails")
             print (" - GetNonPublicCollectionDetails")
@@ -34,6 +36,7 @@ class UnitTests:
             print (" - GetPublishedFileDetails")
             print (" - GetMapsFromCollection")
             print (" ")
+            print ("-- Group Tests --")
             print (" - All")
             print (" - DataFeatures")
             print (" - SteamFeatures")
@@ -136,6 +139,22 @@ class UnitTests:
                 exit(TestNum)
             if ExitOnSuccess : exit(0)
             return True
+        
+        if args[1] == "ConfigCacheCollections":
+            testVal = UnitTests.TEST_ConfigCacheCollections()
+
+            print ("\033[92m") if testVal else print ("\033[91m")
+
+            print ("TEST_ConfigCacheCollections() ::", testVal)
+
+            print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+            
+            TestNum+=1
+            if not testVal :
+                exit(TestNum)
+            if ExitOnSuccess : exit(0)
+            return True
+
         #
         # STEAM API TESTS
         #
@@ -245,6 +264,7 @@ class UnitTests:
             test += int(UnitTests.EXEC_Tests(["","ConfigSerializeManuallyAddedMaps"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","ConfigSaveMapDataWrapper"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","ConfigRegisterNewCollection"], ExitOnSuccess = False))
+            test += int(UnitTests.EXEC_Tests(["","ConfigCacheCollections"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","WebConnection"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","GetCollectionDetails"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","GetNonPublicCollectionDetails"], ExitOnSuccess = False))
@@ -264,6 +284,7 @@ class UnitTests:
             test += int(UnitTests.EXEC_Tests(["","ConfigSerializeManuallyAddedMaps"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","ConfigSaveMapDataWrapper"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","ConfigRegisterNewCollection"], ExitOnSuccess = False))
+            test += int(UnitTests.EXEC_Tests(["","ConfigCacheCollections"], ExitOnSuccess = False))
 
             print("tested "+str(test)+" tests")
             if ExitOnSuccess : exit(1)
@@ -389,8 +410,15 @@ class UnitTests:
         
         if Clear : MapDataWrapper.Clear()
 
-        UnitTests.TEST_ConfigDeserializeManuallyAddedMaps(False)
-        UnitTests.TEST_ConfigDeserializeSteamCollectionsData(False)
+        pretest = UnitTests.TEST_ConfigDeserializeManuallyAddedMaps(False)
+        if not pretest:
+            print("^ UnitTests.TEST_ConfigDeserializeManuallyAddedMaps Failed")
+            return False
+        
+        pretest = UnitTests.TEST_ConfigDeserializeSteamCollectionsData(False)
+        if not pretest:
+            print("^ UnitTests.TEST_ConfigDeserializeSteamCollectionsData Failed")
+            return False
         
         gatheredData = {}
         expectedData = {'mapDataWrapper_isFeatureActivated': True, 'mapDataWrapper_collections': [{'id': 3513758895, 'url': 'https://steamcommunity.com/sharedfiles/filedetails/?id=3513758895', 'name': 'Test Collection - CS2 Server Starter', 'mapIds': []}], 'mapDataWrapper_manuallyAddedMaps': [{'publishedfileid': 100, 'creator': 0, 'title': 'Foo Map Test', 'tags': ['CS2', 'Demolition']}]}
@@ -405,19 +433,55 @@ class UnitTests:
         return True
     
     @staticmethod
-    def TEST_ConfigRegisterNewCollection() -> bool:
-
-        MapDataWrapper.Clear()
+    def TEST_ConfigRegisterNewCollection(Clear = True) -> bool:
+        
+        if Clear : MapDataWrapper.Clear()
 
         colId: int = 3513758895 # Test collection made for the project
 
         ptr_error: list = []    # this variable is a list, lists are mutable
                                 # and can be modified in the method,
                                 # functionning like a C pointer/ref
-
-        MapDataWrapper.RegisterNewCollection(colId, ptr_error)
-
+         
+        try:
+            MapDataWrapper.RegisterNewCollection(colId, ptr_error)
+        except gaierror:
+            print(bcolors.FAIL, end="")
+            print("Internet Connection Failed")
+            print(bcolors.ENDC, end="")
+            return False
+        
         return MapDataWrapper.collections[0].id == colId
+
+    @staticmethod
+    def TEST_ConfigCacheCollections(Clear = True) -> bool:
+        
+        if Clear : MapDataWrapper.Clear()
+
+        ptr_error: list = []    # this variable is a list, lists are mutable
+                                # and can be modified in the method,
+                                # functionning like a C pointer/ref
+
+        try:
+            pretest = UnitTests.TEST_ConfigRegisterNewCollection(False)
+            if not pretest:
+                print("^ UnitTests.TEST_ConfigRegisterNewCollection :: False")
+                return False
+
+            MapDataWrapper.CacheMapsFromCollections(ptr_error)
+        except gaierror:
+            print(bcolors.FAIL, end="")
+            print("Internet Connection Failed")
+            print(bcolors.ENDC, end="")
+            return False
+
+        if(ptr_error != []):
+            print(bcolors.FAIL, end="")
+            print(ptr_error)
+            print(bcolors.ENDC, end="")
+            return False
+
+        return MapDataWrapper.mapsFromCollectionCache != []
 
     @staticmethod
     def TEST_WebConnection() -> bool:

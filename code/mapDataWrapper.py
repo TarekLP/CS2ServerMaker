@@ -215,7 +215,7 @@ class MapDataWrapper:
             ptr_error.append({"SteamFileElementIsAnIncompatibleMap":"could not find any compatible or public maps in the given collections to cache."})
             return False
 
-        MapDataWrapper.CacheMapsFromCollections = _mapCache.copy()
+        MapDataWrapper.mapsFromCollectionCache = _mapCache.copy()
 
         return True
     
