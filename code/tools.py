@@ -11,8 +11,16 @@ class Tools:
         return validMaps
 
     @staticmethod
-    def SteamFileHasTag(fileTags: list, tagToSearch: str):
+    def SteamFileHasTag(fileTags: list, tagToSearch: str) -> bool:
         for tag in fileTags:
             if tag["tag"] == tagToSearch: return True
 
+        return False
+    
+    @staticmethod
+    def IsMapIdAlreadyInList(mapList: dict, mapId: int) -> bool:
+
+        for _map in mapList:
+            if mapList[_map]["id"] == mapId:
+                return True
         return False

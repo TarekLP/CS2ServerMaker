@@ -176,8 +176,6 @@ class SteamWebAPI:
 
         return steamElementsList
     
-
-    
     @staticmethod
     def GetMapsFromCollectionsList(collections: list):
         """

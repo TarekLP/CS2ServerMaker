@@ -35,6 +35,7 @@ class UnitTests:
             print (" - CollectionNotFound")
             print (" - GetPublishedFileDetails")
             print (" - GetMapsFromCollection")
+            print (" - ConfigManuallyRegisterMap")
             print (" ")
             print ("-- Group Tests --")
             print (" - All")
@@ -155,6 +156,36 @@ class UnitTests:
             if ExitOnSuccess : exit(0)
             return True
 
+        if args[1] == "ConfigManuallyRegisterMap":
+            testVal = UnitTests.TEST_ConfigManuallyRegisterMap()
+
+            print ("\033[92m") if testVal else print ("\033[91m")
+
+            print ("TEST_ConfigManuallyRegisterMap() ::", testVal)
+
+            print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+            
+            TestNum+=1
+            if not testVal :
+                exit(TestNum)
+            if ExitOnSuccess : exit(0)
+            return True
+        
+        if args[1] == "ConfigGetFinalMapIDs":
+            testVal = UnitTests.TEST_ConfigGetFinalMapIDs()
+
+            print ("\033[92m") if testVal else print ("\033[91m")
+
+            print ("TEST_ConfigGetFinalMapIDs() ::", testVal)
+
+            print ("Test Pass","\033[0m") if testVal else print ("Test Failed","\033[0m")
+            
+            TestNum+=1
+            if not testVal :
+                exit(TestNum)
+            if ExitOnSuccess : exit(0)
+            return True
+        
         #
         # STEAM API TESTS
         #
@@ -256,6 +287,8 @@ class UnitTests:
             if ExitOnSuccess : exit(0)
             return True
 
+
+
         if args[1] == "All":
             test = 0
             test += int(UnitTests.EXEC_Tests(["","ConfigDeserializeSteamCollectionsData"], ExitOnSuccess = False))
@@ -265,6 +298,8 @@ class UnitTests:
             test += int(UnitTests.EXEC_Tests(["","ConfigSaveMapDataWrapper"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","ConfigRegisterNewCollection"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","ConfigCacheCollections"], ExitOnSuccess = False))
+            test += int(UnitTests.EXEC_Tests(["","ConfigManuallyRegisterMap"], ExitOnSuccess = False))
+            test += int(UnitTests.EXEC_Tests(["","ConfigGetFinalMapIDs"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","WebConnection"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","GetCollectionDetails"], ExitOnSuccess = False))
             test += int(UnitTests.EXEC_Tests(["","GetNonPublicCollectionDetails"], ExitOnSuccess = False))
@@ -483,6 +518,49 @@ class UnitTests:
 
         return MapDataWrapper.mapsFromCollectionCache != []
 
+    def TEST_ConfigManuallyRegisterMap(Clear = True) -> bool:
+        
+        if Clear : MapDataWrapper.Clear()
+
+        ptr_error: list = []    # this variable is a list, lists are mutable
+                                # and can be modified in the method,
+                                # functionning like a C pointer/ref
+        testVal = MapDataWrapper.ManuallyRegisterMaps([3229373526], ptr_error)
+        #print(MapDataWrapper.manuallyAddedMaps[0].ToDict())
+
+        return testVal
+
+    @staticmethod
+    def TEST_ConfigGetFinalMapIDs(Clear = True) -> bool:
+        """
+        to test the gathering of map data from a steam collection
+        """
+
+        MapDataWrapper.Clear()
+
+        UnitTests.TEST_ConfigManuallyRegisterMap(False)
+        UnitTests.TEST_ConfigRegisterNewCollection(False)
+
+        data = MapDataWrapper.GetFinalMapIDs()
+
+        ## Dupplicate Checks
+        _nameOccurences = []
+        _idOccurences = []
+
+        for mapName in data.keys():
+            if(mapName in _nameOccurences):
+                print("Dupplicate in Map Name")
+                return False
+            
+            if(data[mapName]["id"] in _idOccurences):
+                print('Dupplicate in Id')
+                return False
+            
+            _nameOccurences.append(mapName)
+            _idOccurences.append(data[mapName]["id"])
+
+        return True
+    
     @staticmethod
     def TEST_WebConnection() -> bool:
         """
@@ -590,6 +668,7 @@ class UnitTests:
             return False
 
         return True
+    
 
 
 if __name__ == "__main__":

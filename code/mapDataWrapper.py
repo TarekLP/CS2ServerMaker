@@ -1,4 +1,5 @@
-from dataStructs import CSMap, SteamCollection
+from tools import Tools
+from dataStructs import CSMap, SteamCollection, SteamFileElement
 from steamWebAPI import SteamWebAPI
 from exceptions import CollectionIsNotPublicException, CollectionNotFoundException, SteamFileElementIsAnIncompatibleMap, SteamFileElementIsNotACS2Item, SteamFileElementIsNotPublicException
 
@@ -230,5 +231,71 @@ class MapDataWrapper:
 
         ptr_error: list = the mutable variable for error logging
         """
-        print("TODO: Not Implmented (MapDataWrapper.ManuallyRegisterMap())")
-        return False
+        
+        if not SteamWebAPI.TestConnectivity():
+            for mapId in mapIds:
+                _map = CSMap(mapId)
+                MapDataWrapper.manuallyAddedMaps.append(_map)
+            ptr_error.append({"gaierror":"[Warning] No connectivity to steam api, added the ids without information"})
+            return True
+
+        files = SteamWebAPI.GetPublishedFileDetails(len(mapIds), mapIds, False, False)
+
+        if(files == []):
+            ptr_error.append({"SteamFileElementNotFoundException":"no compatible or public files were found."})
+            return False
+
+        for file in files:
+            if(type(file) != SteamFileElement):
+                continue
+
+            if(file.fileType != "Map"):
+                continue
+
+            MapDataWrapper.manuallyAddedMaps.append(file.ToCSMap())
+
+        if(MapDataWrapper.manuallyAddedMaps == []):
+            ptr_error.append({"SteamFileElementNotFoundException":"no compatible or public files were found."})
+            return False
+
+        return True
+
+    @staticmethod
+    def GetFinalMapIDs(CacheCollections = True)->dict:
+        """
+        returns all the ids with map names for ui list (no dupplicates)
+
+        will cache maps by default (CacheCollections = True param)
+        """
+
+        if(CacheCollections):
+            MapDataWrapper.CacheMapsFromCollections()
+
+        _maps: dict = {}
+
+        for cachedMap in MapDataWrapper.mapsFromCollectionCache:
+            if(type(cachedMap) != CSMap):
+                continue
+
+            if(Tools.IsMapIdAlreadyInList(_maps, cachedMap.publishedfileid)):
+                continue
+
+            if(cachedMap.title in _maps.keys()):
+                continue
+            
+            _maps[cachedMap.title] = {"id":cachedMap.publishedfileid,"tags":cachedMap.tags}
+
+            
+        for manuallyAddedMap in MapDataWrapper.manuallyAddedMaps:
+            if(type(manuallyAddedMap) != CSMap):
+                continue
+
+            if(Tools.IsMapIdAlreadyInList(_maps, manuallyAddedMap.publishedfileid)):
+                continue
+
+            if(manuallyAddedMap.title in _maps.keys()):
+                continue
+            
+            _maps[manuallyAddedMap.title] = {"id":manuallyAddedMap.publishedfileid, "tags":manuallyAddedMap.tags}
+
+        return _maps
