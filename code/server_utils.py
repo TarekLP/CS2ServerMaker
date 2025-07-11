@@ -1,6 +1,7 @@
 import os
 import re
 import socket
+import struct # For reading binary file headers
 
 def _find_steam_installations():
     paths = []
@@ -32,59 +33,77 @@ def _find_steam_installations():
 def _parse_library_folders_vdf(vdf_path, log_callback=None):
     library_paths = []
     try:
-        with open(vdf_path, 'r', encoding='utf-8') as f:
+        with open(vdf_path, 'r') as f:
             content = f.read()
-        # Regex to find "path" values within numerical sections (library folders)
-        paths_found = re.findall(r'"\d+"\s*{\s*"path"\s*"(.*?)"', content, re.DOTALL)
-        for p in paths_found:
-            # Normalize paths: replace double backslashes with single, forward slashes with os.sep
-            cleaned_path = p.replace("\\\\", "\\").replace("/", os.sep)
-            if os.path.exists(cleaned_path):
-                library_paths.append(cleaned_path)
-            else:
-                if log_callback:
-                    log_callback(f"Warning: Found VDF library path that does not exist: {cleaned_path}")
+            # Regex to find all "path" values within the VDF file
+            paths_found = re.findall(r'"path"\s+"(.*?)"', content)
+            for path in paths_found:
+                # Normalize paths (replace double backslashes with single ones, then convert to os-specific)
+                normalized_path = path.replace('\\\\', '\\')
+                if os.path.exists(normalized_path):
+                    library_paths.append(normalized_path)
+                    if log_callback:
+                        log_callback(f"Found Steam library: {normalized_path}")
+    except FileNotFoundError:
+        if log_callback:
+            log_callback(f"libraryfolders.vdf not found at {vdf_path}")
     except Exception as e:
         if log_callback:
-            log_callback(f"Error parsing libraryfolders.vdf ({vdf_path}): {e}")
+            log_callback(f"Error parsing libraryfolders.vdf at {vdf_path}: {e}")
     return library_paths
 
 def _parse_appmanifest_acf(acf_path, log_callback=None):
-    install_dir = None
+    """
+    Parses an appmanifest_730.acf file to find the 'installdir' for CS2 (AppId 730).
+    """
     try:
-        with open(acf_path, 'r', encoding='utf-8') as f:
+        with open(acf_path, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read()
-        match = re.search(r'"installdir"\s*"(.*?)"', content)
-        if match:
-            install_dir = match.group(1)
+            # Use regex to find the "installdir" key and its value
+            match = re.search(r'"installdir"\s+"(.*?)"', content)
+            if match:
+                install_dir = match.group(1)
+                if log_callback:
+                    log_callback(f"Found installdir '{install_dir}' in {acf_path}")
+                return install_dir
+            else:
+                if log_callback:
+                    log_callback(f"installdir not found in {acf_path}")
+                return None
+    except FileNotFoundError:
+        if log_callback:
+            log_callback(f"appmanifest_730.acf not found at {acf_path}")
+        return None
     except Exception as e:
         if log_callback:
-            log_callback(f"Error parsing appmanifest_730.acf ({acf_path}): {e}")
-    return install_dir
-
-def auto_detect_cs2_path(log_callback=None):
-    if log_callback:
-        log_callback("Attempting to auto-detect CS2 server executable...")
-    steam_install_paths = _find_steam_installations()
-    found_path = None
-
-    if not steam_install_paths:
-        if log_callback:
-            log_callback("No common Steam installation paths found. Please ensure Steam is installed.")
+            log_callback(f"Error parsing appmanifest_730.acf at {acf_path}: {e}")
         return None
 
-    for steam_path in steam_install_paths:
-        library_folders_path = os.path.join(steam_path, "steamapps", "libraryfolders.vdf")
-        if os.path.exists(library_folders_path):
-            if log_callback:
-                log_callback(f"Found libraryfolders.vdf at: {library_folders_path}")
-            library_paths = _parse_library_folders_vdf(library_folders_path, log_callback)
-            library_paths.insert(0, steam_path) # Add the main Steam path as a primary library
+def auto_detect_cs2_path(log_callback=None):
+    found_path = None
+    steam_paths = _find_steam_installations()
+    if not steam_paths and log_callback:
+        log_callback("No Steam installations found.")
+        return None
 
-            for lib_path in library_paths:
-                cleaned_lib_path = lib_path.strip('"')
-                
+    for steam_path in steam_paths:
+        if log_callback:
+            log_callback(f"Checking Steam installation at: {steam_path}")
+        
+        # Check default steamapps location
+        steamapps_path = os.path.join(steam_path, "steamapps")
+        if os.path.exists(steamapps_path):
+            vdf_path = os.path.join(steamapps_path, "libraryfolders.vdf")
+            
+            # Get additional library folders
+            library_folders = [steamapps_path]
+            if os.path.exists(vdf_path):
+                library_folders.extend(_parse_library_folders_vdf(vdf_path, log_callback))
+            
+            for lib_path in set(library_folders): # Use set to avoid duplicates
+                cleaned_lib_path = lib_path.replace('\\\\', '\\') # Normalize path
                 cs2_appmanifest_path = os.path.join(cleaned_lib_path, "steamapps", "appmanifest_730.acf")
+
                 if os.path.exists(cs2_appmanifest_path):
                     if log_callback:
                         log_callback(f"Found appmanifest_730.acf at: {cs2_appmanifest_path}")
@@ -121,4 +140,58 @@ def detect_ip_address(log_callback=None):
     except Exception as e:
         if log_callback:
             log_callback(f"Error detecting IP address: {e}")
-        return None
+        return "0.0.0.0" # Fallback to 0.0.0.0 (listens on all available IPs)
+
+def validate_vpk_integrity(vpk_path: str, log_callback=None) -> bool:
+    """
+    Performs a basic integrity check on a VPK file by reading its header.
+    This does not fully validate the VPK, but checks if it's a recognizable VPK format.
+    """
+    if not os.path.exists(vpk_path):
+        if log_callback:
+            log_callback(f"VPK file not found: {vpk_path}")
+        return False
+    
+    try:
+        with open(vpk_path, 'rb') as f:
+            # VPK header consists of signature (0x55AA1234), version, and header size
+            signature = struct.unpack('<I', f.read(4))[0] # Little-endian unsigned int
+            if signature != 0x55AA1234:
+                if log_callback:
+                    log_callback(f"VPK validation failed: Invalid signature for {vpk_path}")
+                return False
+            
+            # Read version and header size (for version 2)
+            version, header_size = struct.unpack('<II', f.read(8)) # Version, Header Size
+            if version < 2: # Older VPK versions might not be compatible
+                 if log_callback:
+                    log_callback(f"VPK validation failed: Unsupported VPK version ({version}). Expected 2 or higher: {vpk_path}")
+                 # return False # Uncomment to strictly enforce version 2+
+            
+            if log_callback:
+                log_callback(f"VPK validation: Passed basic header check for {vpk_path}")
+        return True
+    except Exception as e:
+        if log_callback:
+            log_callback(f"Error reading VPK file {vpk_path}: {e}")
+        return False
+
+def get_map_name_from_vpk(vpk_path: str, log_callback=None) -> str:
+    """
+    Attempts to derive a map name from the VPK filename.
+    A more accurate method would involve parsing the VPK's content, which is beyond
+    the scope of simple file operations.
+    """
+    if not vpk_path:
+        return ""
+    
+    base_name = os.path.basename(vpk_path)
+    map_name = os.path.splitext(base_name)[0] # Remove .vpk extension
+    
+    # Simple heuristic: if the VPK name starts with 'ws_', remove it (common for workshop downloads)
+    if map_name.lower().startswith("ws_"):
+        map_name = map_name[3:]
+        if log_callback:
+            log_callback(f"Stripped 'ws_' prefix from VPK name. Derived map name: {map_name}")
+    
+    return map_name

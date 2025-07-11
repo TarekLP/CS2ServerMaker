@@ -4,6 +4,9 @@ class ToolTip:
     """
     A simple tooltip class for Tkinter widgets.
     """
+    background_color = "#FFFFCC" # Default light mode tooltip background
+    foreground_color = "black"   # Default light mode tooltip foreground
+
     def __init__(self, widget, text):
         self.widget = widget
         self.text = text
@@ -26,13 +29,12 @@ class ToolTip:
         self.tip_window.wm_overrideredirect(True) # Removes window decorations
         self.tip_window.wm_geometry(f"+{x}+{y}")
 
-        label = tk.Label(self.tip_window, text=self.text, background="#FFFFCC",
+        label = tk.Label(self.tip_window, text=self.text, background=ToolTip.background_color,
                          relief="solid", borderwidth=1,
-                         font=("tahoma", "8", "normal"))
+                         font=("tahoma", "8", "normal"), foreground=ToolTip.foreground_color)
         label.pack(padx=1)
 
     def hide_tip(self, event=None):
-        "Hide the tooltip window"
         if self.tip_window:
             self.tip_window.destroy()
-        self.tip_window = None
+            self.tip_window = None

@@ -30,996 +30,675 @@ class CS2ServerLauncher:
             "entry_bg": "white", "entry_fg": "black",
             "button_bg": "#e1e1e1", "button_fg": "black",
             "active_button_bg": "#c8c8c8", "active_button_fg": "black",
-            "log_bg": "#ffffff", "log_fg": "#000000",
-            "combobox_bg": "white", "combobox_fg": "black",
-            "start_button_bg": "#4CAF50", "stop_button_bg": "#f44336",
-            "notebook_bg": "#e0e0e0", # New for notebook tab area
-            "notebook_tab_fg": "#333333", # New for tab text
-            "notebook_tab_bg_selected": "white", # New for selected tab background
-            "notebook_tab_bg_unselected": "#e0e0e0" # New for unselected tab background
+            "log_bg": "white", "log_fg": "black",
+            "pb_trough_bg": "#e1e1e1", "pb_chunk_bg": "#4CAF50",
+            "tooltip_bg": "#FFFFCC", "tooltip_fg": "black",
+            "dropdown_bg": "white", "dropdown_fg": "black", "dropdown_active_bg": "#c8c8c8", "dropdown_active_fg": "black",
         }
+
         self.default_dark_theme_colors = {
-            "bg": "#2e2e2e", "fg": "#e0e0e0",
-            "frame_bg": "#3c3c3c", "frame_fg": "#e0e0e0",
-            "entry_bg": "#4a4a4a", "entry_fg": "#e0e0e0",
-            "button_bg": "#555555", "button_fg": "#ffffff",
-            "active_button_bg": "#6a6a6a", "active_button_fg": "#ffffff",
-            "log_bg": "#1e1e1e", "log_fg": "#00ff00",
-            "combobox_bg": "#4a4a4a", "combobox_fg": "#e0e0e0",
-            "start_button_bg": "#28a745", "stop_button_bg": "#dc3545",
-            "notebook_bg": "#2e2e2e",
-            "notebook_tab_fg": "#e0e0e0",
-            "notebook_tab_bg_selected": "#3c3c3c",
-            "notebook_tab_bg_unselected": "#2e2e2e"
+            "bg": "#2b2b2b", "fg": "#cccccc",
+            "frame_bg": "#2b2b2b", "frame_fg": "#cccccc",
+            "entry_bg": "#3c3c3c", "entry_fg": "#cccccc",
+            "button_bg": "#3c3c3c", "button_fg": "#cccccc",
+            "active_button_bg": "#505050", "active_button_fg": "#ffffff",
+            "log_bg": "#1e1e1e", "log_fg": "#cccccc",
+            "pb_trough_bg": "#3c3c3c", "pb_chunk_bg": "#5cb85c",
+            "tooltip_bg": "#444444", "tooltip_fg": "#ffffff",
+            "dropdown_bg": "#3c3c3c", "dropdown_fg": "#cccccc", "dropdown_active_bg": "#505050", "dropdown_active_fg": "#ffffff",
         }
 
-        # Define specific dark mode themes with accents
-        self.dark_purple_theme_colors = self.default_dark_theme_colors.copy()
-        self.dark_purple_theme_colors.update({
-            "start_button_bg": "#8A2BE2", # BlueViolet
-            "stop_button_bg": "#8B008B",  # DarkMagenta
-            "active_button_bg": "#9932CC", # DarkOrchid
-            "log_fg": "#DA70D6", # Orchid
-            "notebook_tab_bg_selected": "#8A2BE2",
-            "notebook_tab_bg_unselected": "#3c3c3c"
-        })
-
-        self.dark_red_theme_colors = self.default_dark_theme_colors.copy()
-        self.dark_red_theme_colors.update({
-            "start_button_bg": "#DC143C", # Crimson
-            "stop_button_bg": "#8B0000",  # DarkRed
-            "active_button_bg": "#A52A2A", # Brown
-            "log_fg": "#FF6347", # Tomato
-            "notebook_tab_bg_selected": "#DC143C",
-            "notebook_tab_bg_unselected": "#3c3c3c"
-        })
-
-        # Master dictionary of all preset themes
-        self.preset_themes = {
-            "Light Mode": self.default_light_theme_colors,
-            "Dark Mode - Default": self.default_dark_theme_colors,
-            "Dark Mode - Purple": self.dark_purple_theme_colors,
-            "Dark Mode - Red": self.dark_red_theme_colors
+        self.current_theme_colors = {}
+        self.is_dark_mode = False
+        self.custom_colors = {
+            "light": {},
+            "dark": {}
         }
-        self.user_defined_themes = {} # New: To store themes created by the user
-
-        # Variable to hold the name of the currently selected theme
-        self.current_theme_name = tk.StringVar(value="Dark Mode - Default") # Initial selection changed to Dark Mode
-        
-        # Reference to the currently active theme config (can be a user-modified copy of a preset)
-        self.active_theme_config = self.preset_themes["Dark Mode - Default"].copy() # Initialize with a copy of Dark Mode
-
-        # --- Variables for input fields ---
-        self.cs2_exe_path = tk.StringVar(value="")
-        self.pc_ip_address = tk.StringVar(value="")
-        self.map_name = tk.StringVar(value="de_dust2")
-        self.max_players = tk.StringVar(value="10")
-        self.server_port = tk.StringVar(value="27015")
-        self.server_password = tk.StringVar(value="")
-        self.rcon_password = tk.StringVar(value="")
-
-        # Combined Game Modes dropdown
-        self.all_game_modes = {
-            "Casual": ("0", "0"),
-            "Competitive": ("0", "1"),
-            "Wingman": ("0", "2"),
-            "Arms Race": ("1", "0"),
-            "Deathmatch": ("1", "2"),
-        }
-
-        self.selected_game_mode_display = tk.StringVar(value="Casual")
-        self.additional_args = tk.StringVar(value="-usercon -dedicated")
-
-        # --- Comprehensive CS2 Map List ---
-        self.cs2_maps = {
-            "Active Duty/Premier": [
-                "de_ancient", "de_anubis", "de_dust2", "de_inferno",
-                "de_mirage", "de_nuke", "de_overpass", "de_vertigo"
-            ],
-            "Reserve/Other Bomb Defusal": [
-                "de_train", "de_basalt", "de_edin", "de_palais",
-                "de_whistle"
-            ],
-            "Hostage Rescue": [
-                "cs_office", "cs_italy", "cs_agency"
-            ],
-            "Arms Race": [
-                "ar_baggage", "ar_shoots", "ar_pool_day"
-            ],
-            "Wingman (adapted for 2v2)": [
-                "de_shortdust", "de_lake", "de_vertigo", "de_overpass",
-                "de_nuke", "de_inferno", "de_ancient", "de_mirage",
-                "de_memento", "de_assembly"
-            ]
-        }
-
-        self.flattened_map_list = sorted(list(set(
-            map_name for category in self.cs2_maps.values() for map_name in category
-        )))
-
-        self.credits_content = (
-            "CS2 Dedicated Server Launcher\n"
-            "Version 1.2.1\n\n"
-            "Developed by Tarek\n"
-            "Special thanks to CS2's Inability to directly host Dedicated Servers.\n\n"
-        )
+        self.current_preset_name = "Default Light" # To store the name of the active preset
 
         self.create_widgets()
+        self.apply_theme(self.is_dark_mode) # Apply initial theme
         self.auto_detect_cs2_path()
-        # Apply the initial preset theme
-        self.apply_preset_theme() # Will use self.current_theme_name.get()
 
-    def add_tooltip(self, widget, text):
-        """Helper method to add a tooltip to a widget."""
-        ToolTip(widget, text)
 
     def create_widgets(self):
-        # Configure ttk.Style for Notebook tabs and Comboboxes
-        self.style = ttk.Style()
-        self.style.theme_use('clam') # Use 'clam' for better customization
+        # Frame for server path configuration
+        path_frame = ttk.LabelFrame(self.master, text="CS2 Server Path")
+        path_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew", columnspan=2)
+        self.master.grid_columnconfigure(0, weight=1)
 
-        # Custom style for left-side tabs
-        self.style.configure('LeftTabs.TNotebook', tabposition='nw')
-        # Default padding for unselected tabs (small)
-        self.style.configure('LeftTabs.TNotebook.Tab', padding=(2, 10))
-        # Map for selected tab padding (normal)
-        self.style.map('LeftTabs.TNotebook.Tab', padding=[('selected', (5, 20))])
+        self.path_entry = ttk.Entry(path_frame, width=80)
+        self.path_entry.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        self.path_entry.insert(0, os.path.join(os.getcwd(), "cs2_server")) # Default path
+        ToolTip(self.path_entry, "Path to your CS2 dedicated server installation.")
 
-        # Notebook (Tabbed Interface)
-        self.notebook = ttk.Notebook(self.master, style='LeftTabs.TNotebook')
-        self.notebook.pack(pady=10, padx=10, fill="both", expand=True) # Fills the main window, tabs will be on the left
-        # Removed: self.notebook.configure(tabposition='nw') # This line caused the error
+        browse_button = ttk.Button(path_frame, text="Browse", command=self.browse_path)
+        browse_button.grid(row=0, column=1, padx=5, pady=5)
+        ToolTip(browse_button, "Browse for the cs2.exe file.")
 
-        # --- Server Setup Tab ---
-        self.server_setup_frame = tk.Frame(self.notebook)
-        self.notebook.add(self.server_setup_frame, text="Server Setup")
-        
-        # Grid configuration for Server Setup Frame (inside the tab)
-        self.server_setup_frame.grid_columnconfigure(0, weight=0)
-        self.server_setup_frame.grid_columnconfigure(1, weight=1)
-        self.server_setup_frame.grid_columnconfigure(2, weight=0)
-        self.server_setup_frame.grid_columnconfigure(3, weight=0)
+        autodetect_button = ttk.Button(path_frame, text="Autodetect", command=self.auto_detect_cs2_path)
+        autodetect_button.grid(row=0, column=2, padx=5, pady=5)
+        ToolTip(autodetect_button, "Attempt to automatically detect the CS2 server path.")
 
-        # Widgets for Server Setup
-        row = 0
-        self.label_exe_path = tk.Label(self.server_setup_frame, text="CS2 Server Exe Path:")
-        self.label_exe_path.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.exe_path_entry = tk.Entry(self.server_setup_frame, textvariable=self.cs2_exe_path)
-        self.exe_path_entry.grid(row=row, column=1, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.exe_path_entry, "The full path to your CS2 dedicated server executable (cs2.exe).")
-        self.browse_button = tk.Button(self.server_setup_frame, text="Browse", command=self.browse_exe_path)
-        self.browse_button.grid(row=row, column=2, pady=2, padx=2)
-        self.add_tooltip(self.browse_button, "Browse your file system to locate 'cs2.exe'.")
-        self.auto_detect_button = tk.Button(self.server_setup_frame, text="Auto-Detect", command=self.auto_detect_cs2_path)
-        self.auto_detect_button.grid(row=row, column=3, pady=2, padx=5)
-        self.add_tooltip(self.auto_detect_button, "Automatically attempt to find the CS2 dedicated server executable.")
+        # Server configuration options
+        config_frame = ttk.LabelFrame(self.master, text="Server Configuration")
+        config_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew", columnspan=2)
+        self.master.grid_rowconfigure(1, weight=1) # Allow config frame to expand vertically
 
-        row += 1
-        self.label_ip = tk.Label(self.server_setup_frame, text="PC IP Address:")
-        self.label_ip.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.ip_entry = tk.Entry(self.server_setup_frame, textvariable=self.pc_ip_address)
-        self.ip_entry.grid(row=row, column=1, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.ip_entry, "Your PC's local IP address that the server will bind to. Leave blank to auto-detect.")
-        self.detect_ip_button = tk.Button(self.server_setup_frame, text="Detect IP", command=self._detect_ip_address_gui)
-        self.detect_ip_button.grid(row=row, column=2, columnspan=2, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.detect_ip_button, "Attempt to automatically detect your local IP address.")
+        # Left column for basic settings
+        left_config_frame = ttk.Frame(config_frame)
+        left_config_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
 
-        row += 1
-        self.label_server_password = tk.Label(self.server_setup_frame, text="Server Password (Optional):")
-        self.label_server_password.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.server_password_entry = tk.Entry(self.server_setup_frame, textvariable=self.server_password, show="*")
-        self.server_password_entry.grid(row=row, column=1, columnspan=3, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.server_password_entry, "Set a password for your server. Players will need this to join.")
+        # Map selection
+        ttk.Label(left_config_frame, text="Map:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.map_var = tk.StringVar(self.master)
+        self.map_dropdown = ttk.OptionMenu(left_config_frame, self.map_var, "de_dust2", "de_dust2", "de_inferno", "de_nuke", "de_ancient", "de_vertigo", "de_mirage", "de_overpass")
+        self.map_dropdown.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ToolTip(self.map_dropdown, "Select the map to load on server start.")
 
-        row += 1
-        self.label_rcon_password = tk.Label(self.server_setup_frame, text="RCON Password (Optional):")
-        self.label_rcon_password.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.rcon_password_entry = tk.Entry(self.server_setup_frame, textvariable=self.rcon_password, show="*")
-        self.rcon_password_entry.grid(row=row, column=1, columnspan=3, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.rcon_password_entry, "Set an RCON password for remote server administration.")
-        
-        row += 1
-        self.label_server_port = tk.Label(self.server_setup_frame, text="Server Port:")
-        self.label_server_port.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.server_port_entry = tk.Entry(self.server_setup_frame, textvariable=self.server_port)
-        self.server_port_entry.grid(row=row, column=1, columnspan=3, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.server_port_entry, "The UDP port the server will listen on (default is 27015). Ensure it's forwarded in your router if hosting externally.")
+        # Game mode selection
+        ttk.Label(left_config_frame, text="Game Mode:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.gamemode_var = tk.StringVar(self.master)
+        self.gamemode_dropdown = ttk.OptionMenu(left_config_frame, self.gamemode_var, "Competitive", "Competitive", "Casual", "Deathmatch")
+        self.gamemode_dropdown.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ToolTip(self.gamemode_dropdown, "Select the game mode for the server.")
 
-        row += 1
-        self.label_max_players = tk.Label(self.server_setup_frame, text="Max Players:")
-        self.label_max_players.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.max_players_entry = tk.Entry(self.server_setup_frame, textvariable=self.max_players)
-        self.max_players_entry.grid(row=row, column=1, columnspan=3, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.max_players_entry, "The maximum number of players allowed on the server (1-64).")
-        
-        row += 1
-        self.label_game_mode = tk.Label(self.server_setup_frame, text="Game Mode:")
-        self.label_game_mode.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.game_mode_combobox = ttk.Combobox(
-            self.server_setup_frame,
-            textvariable=self.selected_game_mode_display,
-            values=list(self.all_game_modes.keys()),
-            state="readonly"
-        )
-        self.game_mode_combobox.grid(row=row, column=1, columnspan=3, pady=2, padx=5, sticky="ew")
-        self.game_mode_combobox.set("Casual")
-        self.add_tooltip(self.game_mode_combobox, "Select the game mode for your server (e.g., Casual, Competitive, Arms Race).")
+        # Max Players
+        ttk.Label(left_config_frame, text="Max Players:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.max_players_entry = ttk.Entry(left_config_frame, width=10)
+        self.max_players_entry.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        self.max_players_entry.insert(0, "10")
+        ToolTip(self.max_players_entry, "Set the maximum number of players allowed on the server.")
 
-        row += 1
-        self.label_map = tk.Label(self.server_setup_frame, text="Map Name:")
-        self.label_map.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.map_combobox = ttk.Combobox(
-            self.server_setup_frame,
-            textvariable=self.map_name,
-            values=self.flattened_map_list,
-            state="readonly"
-        )
-        self.map_combobox.grid(row=row, column=1, columnspan=3, pady=2, padx=5, sticky="ew")
-        self.map_combobox.set("de_dust2")
-        self.add_tooltip(self.map_combobox, "Select the initial map for the server to load. Ensure it matches your chosen game mode.")
+        # Port
+        ttk.Label(left_config_frame, text="Port:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.port_entry = ttk.Entry(left_config_frame, width=10)
+        self.port_entry.grid(row=3, column=1, padx=5, pady=5, sticky="w")
+        self.port_entry.insert(0, "27015")
+        ToolTip(self.port_entry, "Set the port for the server. Default is 27015.")
 
-        row += 1
-        self.label_additional_args = tk.Label(self.server_setup_frame, text="Additional Args:")
-        self.label_additional_args.grid(row=row, column=0, sticky="w", pady=2, padx=5)
-        self.additional_args_entry = tk.Entry(self.server_setup_frame, textvariable=self.additional_args)
-        self.additional_args_entry.grid(row=row, column=1, columnspan=3, pady=2, padx=5, sticky="ew")
-        self.add_tooltip(self.additional_args_entry, "Add any extra command-line arguments for the server (e.g., -tickrate 128, +sv_cheats 1).")
+        # RCON Password
+        ttk.Label(left_config_frame, text="RCON Password:").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        self.rcon_password_entry = ttk.Entry(left_config_frame, width=30, show="*")
+        self.rcon_password_entry.grid(row=4, column=1, padx=5, pady=5, sticky="ew")
+        ToolTip(self.rcon_password_entry, "Set the RCON password for remote server administration.")
 
-        # --- Server Launch Tab ---
-        self.server_launch_frame = tk.Frame(self.notebook)
-        self.notebook.add(self.server_launch_frame, text="Server Launch")
+        # Server Name
+        ttk.Label(left_config_frame, text="Server Name:").grid(row=5, column=0, padx=5, pady=5, sticky="w")
+        self.server_name_entry = ttk.Entry(left_config_frame, width=30)
+        self.server_name_entry.grid(row=5, column=1, padx=5, pady=5, sticky="ew")
+        self.server_name_entry.insert(0, "My CS2 Server")
+        ToolTip(self.server_name_entry, "Set the name of your server as it appears in the server browser.")
 
-        # Command Buttons for Server Launch
-        launch_buttons_frame = tk.Frame(self.server_launch_frame, padx=10, pady=5)
-        launch_buttons_frame.pack(pady=5)
-        self.launch_buttons_frame = launch_buttons_frame # Store for theming
+        # Right column for advanced settings (initially empty, can be expanded)
+        right_config_frame = ttk.Frame(config_frame)
+        right_config_frame.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
+        config_frame.grid_columnconfigure(1, weight=1) # Allow right column to expand
 
-        self.start_button = tk.Button(launch_buttons_frame, text="Start Server", command=self.start_server, width=15, height=2)
-        self.start_button.pack(side="left", padx=10)
-        self.add_tooltip(self.start_button, "Start the CS2 dedicated server with the specified parameters.")
+        ttk.Label(right_config_frame, text="Additional Command Line Arguments:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.additional_args_entry = ttk.Entry(right_config_frame, width=50)
+        self.additional_args_entry.grid(row=1, column=0, padx=5, pady=5, sticky="ew", columnspan=2)
+        ToolTip(self.additional_args_entry, "Add any extra command line arguments for the server.")
+        right_config_frame.grid_columnconfigure(0, weight=1)
 
-        self.stop_button = tk.Button(launch_buttons_frame, text="Stop Server", command=self.stop_server, width=15, height=2)
-        self.stop_button.pack(side="left", padx=10)
-        self.add_tooltip(self.stop_button, "Stop the currently running CS2 dedicated server.")
-        
-        # Console Command Input
-        command_frame = tk.Frame(self.server_launch_frame, padx=10, pady=5)
-        command_frame.pack(padx=10, pady=(0, 10), fill="x")
-        self.command_frame = command_frame # Store for theming
-        
-        self.command_label = tk.Label(command_frame, text="Console Command:")
-        self.command_label.pack(side="left", padx=(0, 5))
-        self.add_tooltip(self.command_label, "Enter a console command to send to the server (e.g., 'sv_cheats 1', 'changelevel de_mirage').")
+        # Server control buttons
+        button_frame = ttk.Frame(self.master)
+        button_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew", columnspan=2)
 
-        self.command_entry = tk.Entry(command_frame, textvariable=tk.StringVar(), width=60)
-        self.command_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        self.command_entry.bind("<Return>", self.send_command_on_enter) # Bind Enter key
-        self.add_tooltip(self.command_entry, "Type your console command here and press Enter or click 'Send Command'.")
+        self.start_button = ttk.Button(button_frame, text="Start Server", command=self.start_server)
+        self.start_button.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
+        self.stop_button = ttk.Button(button_frame, text="Stop Server", command=self.stop_server, state=tk.DISABLED)
+        self.stop_button.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
 
-        self.send_command_button = tk.Button(command_frame, text="Send Command", command=self.send_console_command)
-        self.send_command_button.pack(side="left")
-        self.add_tooltip(self.send_command_button, "Send the entered command to the server.")
+        # Log output
+        log_frame = ttk.LabelFrame(self.master, text="Server Output Log")
+        log_frame.grid(row=3, column=0, padx=10, pady=10, sticky="nsew", columnspan=2)
+        self.master.grid_rowconfigure(3, weight=2) # Log frame takes more vertical space
 
-        # Log Frame
-        log_frame = tk.LabelFrame(self.server_launch_frame, text="Server Output Log", padx=10, pady=10)
-        log_frame.pack(padx=10, pady=10, fill="both", expand=True)
-        self.log_frame = log_frame # Store for theming
+        self.log_text = tk.Text(log_frame, wrap=tk.WORD, state=tk.DISABLED, height=15)
+        self.log_text.pack(padx=5, pady=5, fill=tk.BOTH, expand=True)
+        self.log_text_scrollbar = ttk.Scrollbar(self.log_text, command=self.log_text.yview)
+        self.log_text.config(yscrollcommand=self.log_text_scrollbar.set)
 
-        self.log_text = tk.Text(log_frame, height=10, state="disabled", wrap="word", font=("Consolas", 10))
-        self.log_text.pack(side="left", fill="both", expand=True)
-        self.log_text_scroll = tk.Scrollbar(log_frame, command=self.log_text.yview)
-        self.log_text_scroll.pack(side="right", fill="y")
-        self.log_text.config(yscrollcommand=self.log_text_scroll.set)
-        self.add_tooltip(self.log_text, "Displays real-time output and logs from the CS2 dedicated server.")
+        # Menu Bar
+        self.menubar = tk.Menu(self.master)
+        self.master.config(menu=self.menubar)
 
+        # File Menu
+        file_menu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="Load Configuration", command=self.load_config)
+        file_menu.add_command(label="Save Configuration", command=self.save_config)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.on_closing)
 
-        # --- Tool Settings Tab ---
-        self.tool_settings_frame = tk.Frame(self.notebook)
-        self.notebook.add(self.tool_settings_frame, text="Tool Settings")
-        
-        settings_label_frame = tk.LabelFrame(self.tool_settings_frame, text="Theme Settings", padx=10, pady=10)
-        settings_label_frame.pack(padx=10, pady=10, fill="x")
-        self.settings_label_frame = settings_label_frame # Store for theming
+        # Theme Menu
+        theme_menu = tk.Menu(self.menubar, tearoff=0)
+        self.menubar.add_cascade(label="Theme", menu=theme_menu)
 
-        # Theme selection dropdown
-        tk.Label(settings_label_frame, text="Select Theme:", padx=5, pady=5).pack(side="left")
-        self.theme_combobox = ttk.Combobox(
-            settings_label_frame,
-            textvariable=self.current_theme_name,
-            values=[], # Will be populated by _update_theme_combobox_values
-            state="readonly",
-            width=25
-        )
-        self.theme_combobox.pack(side="left", padx=5, pady=5)
-        self.theme_combobox.bind("<<ComboboxSelected>>", self.apply_preset_theme)
-        self.add_tooltip(self.theme_combobox, "Select a predefined or custom theme for the application.")
-        self._update_theme_combobox_values() # Initial population of combobox values after all themes are defined
-        self.theme_combobox.set(self.current_theme_name.get()) # Set initial display value
+        self.preset_theme_menu = tk.Menu(theme_menu, tearoff=0)
+        theme_menu.add_cascade(label="Presets", menu=self.preset_theme_menu)
+        self.update_preset_theme_menu() # Populate with initial presets
 
-        # Color customization button
-        self.settings_button = tk.Button(settings_label_frame, text="Customize Colors", command=self.open_settings_window)
-        self.settings_button.pack(side="left", padx=5, pady=5)
-        self.add_tooltip(self.settings_button, "Open color customization settings for the current theme.")
+        theme_menu.add_command(label="Customize Theme", command=self.open_theme_customizer)
+        theme_menu.add_command(label="Save Current Theme as Preset", command=self.save_current_theme_as_preset)
+        theme_menu.add_command(label="Delete Theme Preset", command=self.delete_theme_preset)
+        theme_menu.add_separator()
+        theme_menu.add_command(label="Toggle Dark Mode", command=self.toggle_dark_mode)
 
-        # Save/Load Configuration (now in Tool Settings)
-        config_buttons_frame = tk.Frame(self.tool_settings_frame, padx=10, pady=5)
-        config_buttons_frame.pack(pady=5, fill="x")
-        self.config_buttons_frame = config_buttons_frame
+    def update_preset_theme_menu(self):
+        self.preset_theme_menu.delete(0, tk.END) # Clear existing items
+        # Add default presets
+        self.preset_theme_menu.add_command(label="Default Light", command=lambda: self.apply_preset_theme("Default Light"))
+        self.preset_theme_menu.add_command(label="Default Dark", command=lambda: self.apply_preset_theme("Default Dark"))
+        self.preset_theme_menu.add_separator()
 
-        self.save_config_button = tk.Button(config_buttons_frame, text="Save Config", command=self.save_config, width=15)
-        self.save_config_button.pack(side="left", padx=10)
-        self.add_tooltip(self.save_config_button, "Save current server settings and custom themes to a configuration file.")
-
-        self.load_config_button = tk.Button(config_buttons_frame, text="Load Config", command=self.load_config, width=15)
-        self.load_config_button.pack(side="left", padx=10)
-        self.add_tooltip(self.load_config_button, "Load server settings and custom themes from a configuration file.")
-
-        # Credits button (positioned at bottom right of the tab)
-        # We need a frame that will expand and push the credits button to the right
-        credits_container_frame = tk.Frame(self.tool_settings_frame)
-        credits_container_frame.pack(fill="x", expand=True, padx=10, pady=10) # Fills and expands to push button down
-        self.credits_container_frame = credits_container_frame # Store for theming
-
-        self.credits_button = tk.Button(credits_container_frame, text="Credits", command=self.show_credits)
-        self.credits_button.pack(side="right", anchor="se") # Anchor to bottom-right
-        self.add_tooltip(self.credits_button, "View application credits and version information.")
-
-        # --- Map Setup Tab (Placeholder) ---
-        self.map_setup_frame = tk.Frame(self.notebook)
-        self.notebook.add(self.map_setup_frame, text="Map Setup")
-        tk.Label(self.map_setup_frame, text="Map Setup features coming soon!", font=("Arial", 12)).pack(pady=50)
-        
-        # List of all widgets that need to be themed dynamically
-        self.themable_widgets = {
-            "frames": [
-                self.server_setup_frame, self.server_launch_frame, self.log_frame,
-                self.launch_buttons_frame, self.command_frame, self.tool_settings_frame,
-                self.settings_label_frame, self.config_buttons_frame,
-                self.credits_container_frame, self.map_setup_frame
-            ],
-            "labels": [
-                self.label_exe_path, self.label_ip, self.label_map, self.label_max_players,
-                self.label_server_port, self.label_server_password, self.label_rcon_password,
-                self.label_game_mode, self.label_additional_args, self.command_label,
-                settings_label_frame.winfo_children()[0] # The "Select Theme:" label
-            ],
-            "entries": [
-                self.exe_path_entry, self.ip_entry, self.max_players_entry,
-                self.server_port_entry, self.server_password_entry, self.rcon_password_entry,
-                self.additional_args_entry, self.command_entry
-            ],
-            "buttons": [
-                self.browse_button, self.auto_detect_button, self.detect_ip_button,
-                self.send_command_button, self.save_config_button, self.load_config_button,
-                self.settings_button, self.credits_button
-            ],
-            "special_buttons": {
-                "start": self.start_button,
-                "stop": self.stop_button
-            },
-            "text_widgets": [self.log_text],
-            "scrollbars": [self.log_text_scroll],
-            "comboboxes": [self.theme_combobox, self.map_combobox, self.game_mode_combobox]
-        }
-
-    def _update_theme_combobox_values(self):
-        """Updates the values in the theme combobox to include all preset and user-defined themes."""
-        combined_theme_names = sorted(list(self.preset_themes.keys()) + list(self.user_defined_themes.keys()))
-        self.theme_combobox["values"] = combined_theme_names
-        # Ensure the selected theme is still in the list, or default
-        if self.current_theme_name.get() not in combined_theme_names:
-            if "Dark Mode - Default" in combined_theme_names: # Changed to prefer Dark Mode
-                self.current_theme_name.set("Dark Mode - Default")
-                self.theme_combobox.set("Dark Mode - Default")
-            elif combined_theme_names: # Fallback to first available if Dark Mode not there
-                self.current_theme_name.set(combined_theme_names[0])
-                self.theme_combobox.set(combined_theme_names[0])
-            else: # No themes at all (shouldn't happen with default presets)
-                self.current_theme_name.set("")
-                self.theme_combobox.set("")
-
-    def apply_theme(self, theme_config_dict):
-        """Applies the specified theme (color dictionary) to all widgets."""
-        self.active_theme_config = theme_config_dict.copy() # Store a mutable copy for settings
-        theme = self.active_theme_config
-        
-        # Update master window
-        self.master.config(bg=theme["bg"])
-        self.master.update_idletasks() # Force update after changing master background
-
-        # Configure ttk styles for Notebook and Comboboxes
-        # General TNotebook style
-        self.style.configure('TNotebook', background=theme["notebook_bg"], bordercolor=theme["notebook_bg"])
-        # Specific style for LeftTabs.TNotebook
-        self.style.configure('LeftTabs.TNotebook', background=theme["notebook_bg"], bordercolor=theme["notebook_bg"], tabposition='nw') # Ensure tabposition is preserved
-
-        # General TNotebook.Tab style
-        self.style.configure('TNotebook.Tab',
-                             background=theme["notebook_tab_bg_unselected"],
-                             foreground=theme["notebook_tab_fg"],
-                             lightcolor=theme["notebook_tab_bg_unselected"],
-                             darkcolor=theme["notebook_tab_bg_unselected"],
-                             bordercolor=theme["notebook_bg"])
-        self.style.map('TNotebook.Tab',
-                       background=[('selected', theme["notebook_tab_bg_selected"])],
-                       foreground=[('selected', theme["notebook_tab_fg"])])
-        
-        # Specific style for LeftTabs.TNotebook.Tab (for vertical tabs)
-        self.style.configure('LeftTabs.TNotebook.Tab',
-                             padding=(2, 10), # Default smaller padding for unselected
-                             background=theme["notebook_tab_bg_unselected"],
-                             foreground=theme["notebook_tab_fg"],
-                             lightcolor=theme["notebook_tab_bg_unselected"],
-                             darkcolor=theme["notebook_tab_bg_unselected"],
-                             bordercolor=theme["notebook_bg"])
-        self.style.map('LeftTabs.TNotebook.Tab',
-                       padding=[('selected', (5, 20))], # Larger padding for selected tab
-                       background=[('selected', theme["notebook_tab_bg_selected"])],
-                       foreground=[('selected', theme["notebook_tab_fg"])])
-        
-        # Configure the general TCombobox style
-        self.style.configure("TCombobox",
-                        fieldbackground=theme["combobox_bg"],
-                        background=theme["button_bg"], # Background of the dropdown arrow area
-                        foreground=theme["combobox_fg"],
-                        selectbackground=theme["button_bg"], # Background when text is selected within the combobox
-                        selectforeground=theme["combobox_fg"],
-                        arrowcolor=theme["button_fg"], # Color of the dropdown arrow
-                        bordercolor=theme["button_bg"], # Border around the combobox
-                        lightcolor=theme["button_bg"],
-                        darkcolor=theme["button_bg"])
-
-        # Map to handle state changes (e.g., when combobox is readonly)
-        self.style.map('TCombobox',
-                  fieldbackground=[('readonly', theme["combobox_bg"])],
-                  background=[('readonly', theme["button_bg"])],
-                  foreground=[('readonly', theme["combobox_fg"])],
-                  selectbackground=[('readonly', theme["button_bg"])],
-                  selectforeground=[('readonly', theme["combobox_fg"])])
-        
-        self.master.update_idletasks() # Update after ttk style changes
-
-        # Update frames
-        for frame in self.themable_widgets["frames"]:
-            if frame.winfo_exists(): # Check if widget exists (e.g., settings_label_frame is within tool_settings_frame)
-                frame.config(bg=theme["frame_bg"])
-        
-        # Update labels
-        for label in self.themable_widgets["labels"]:
-            if label.winfo_exists():
-                label.config(bg=theme["frame_bg"], fg=theme["frame_fg"])
-
-        # Update Entry widgets
-        for entry in self.themable_widgets["entries"]:
-            if entry.winfo_exists():
-                entry.config(bg=theme["entry_bg"], fg=theme["entry_fg"], insertbackground=theme["entry_fg"])
-
-        # Update regular Buttons
-        for button in self.themable_widgets["buttons"]:
-            if button.winfo_exists():
-                button.config(bg=theme["button_bg"], fg=theme["button_fg"],
-                            activebackground=theme["active_button_bg"], activeforeground=theme["active_button_fg"])
-        
-        # Special buttons (Start/Stop)
-        if self.themable_widgets["special_buttons"]["start"].winfo_exists():
-            self.themable_widgets["special_buttons"]["start"].config(bg=theme["start_button_bg"], fg="white",
-                                     activebackground=theme["start_button_bg"], activeforeground="white")
-        if self.themable_widgets["special_buttons"]["stop"].winfo_exists():
-            self.themable_widgets["special_buttons"]["stop"].config(bg=theme["stop_button_bg"], fg="white",
-                                    activebackground=theme["stop_button_bg"], activeforeground="white")
-
-        # Update Text widget (log_text)
-        if self.themable_widgets["text_widgets"][0].winfo_exists():
-            self.themable_widgets["text_widgets"][0].config(bg=theme["log_bg"], fg=theme["log_fg"])
-        
-        # Update Scrollbar
-        if self.themable_widgets["scrollbars"][0].winfo_exists():
-            self.themable_widgets["scrollbars"][0].config(bg=theme["button_bg"]) # Scrollbar background
-
-        self.master.update_idletasks() # Final update
-
-    def apply_preset_theme(self, event=None):
-        """Applies the theme selected from the preset dropdown (either default or user-defined)."""
-        selected_theme_name = self.current_theme_name.get()
-        
-        theme_config_dict = self.preset_themes.get(selected_theme_name)
-        if not theme_config_dict: # Not found in default presets, check user-defined
-            theme_config_dict = self.user_defined_themes.get(selected_theme_name)
-
-        if theme_config_dict:
-            # We want to apply a COPY of the preset/user-defined theme,
-            # so modifications in settings don't change the original preset/user-defined definition.
-            self.apply_theme(theme_config_dict.copy()) # Pass a copy
+        # Load custom presets from file
+        self.load_custom_presets()
+        if self.custom_presets:
+            for preset_name in self.custom_presets.keys():
+                self.preset_theme_menu.add_command(label=preset_name, command=lambda name=preset_name: self.apply_preset_theme(name))
         else:
-            self.append_to_log(f"Warning: Theme '{selected_theme_name}' not found in any theme collection. Falling back to Dark Mode - Default.")
-            # Fallback to default dark theme if selected theme is not found
-            self.current_theme_name.set("Dark Mode - Default")
-            self.theme_combobox.set("Dark Mode - Default")
-            self.apply_theme(self.preset_themes["Dark Mode - Default"].copy())
+            self.preset_theme_menu.add_command(label="No Custom Presets", state=tk.DISABLED)
 
-    def show_credits(self):
-        """Displays the credits information in a message box."""
-        messagebox.showinfo("Credits", self.credits_content)
 
-    def open_settings_window(self):
-        """Opens a new window for color customization settings."""
-        settings_window = tk.Toplevel(self.master)
-        settings_window.title("Color Settings")
-        settings_window.geometry("450x650") # Increased height for new options
-        settings_window.resizable(False, False)
-        settings_window.transient(self.master) # Make it appear on top of the main window
-        settings_window.grab_set() # Make it modal
+    def toggle_dark_mode(self):
+        self.is_dark_mode = not self.is_dark_mode
+        self.apply_theme(self.is_dark_mode)
+        self.append_to_log(f"Dark mode toggled to: {self.is_dark_mode}")
 
-        settings_window.config(bg=self.active_theme_config["bg"]) # Use active_theme_config
 
-        # Mapping of theme keys to display names for settings
-        color_map = {
-            "bg": "General Background",
-            "fg": "General Text Color",
-            "frame_bg": "Frame Background",
-            "frame_fg": "Frame Title/Label Color",
-            "entry_bg": "Entry Field Background",
-            "entry_fg": "Entry Field Text",
-            "button_bg": "Normal Button Background",
-            "button_fg": "Normal Button Text",
-            "log_bg": "Log Area Background",
-            "log_fg": "Log Area Text",
-            "combobox_bg": "Combobox Field Background", # New
-            "combobox_fg": "Combobox Field Text",       # New
-            "start_button_bg": "Start Button Background",
-            "stop_button_bg": "Stop Button Background",
-            "notebook_bg": "Notebook Background", # New
-            "notebook_tab_fg": "Notebook Tab Text", # New
-            "notebook_tab_bg_selected": "Selected Tab Background", # New
-            "notebook_tab_bg_unselected": "Unselected Tab Background" # New
-        }
+    def apply_theme(self, is_dark):
+        self.is_dark_mode = is_dark
+        if self.is_dark_mode:
+            self.current_theme_colors = self.default_dark_theme_colors.copy()
+            self.current_theme_colors.update(self.custom_colors.get("dark", {}))
+            self.current_preset_name = "Default Dark" # Update preset name
+        else:
+            self.current_theme_colors = self.default_light_theme_colors.copy()
+            self.current_theme_colors.update(self.custom_colors.get("light", {}))
+            self.current_preset_name = "Default Light" # Update preset name
+
+
+        # Apply colors to widgets
+        self.master.config(bg=self.current_theme_colors["bg"])
+        
+        # Apply to all ttk widgets
+        style = ttk.Style()
+        style.theme_use('clam') # Use 'clam' or 'alt' for more theme control
+
+        style.configure(".",
+                        background=self.current_theme_colors["bg"],
+                        foreground=self.current_theme_colors["fg"],
+                        font=("Segoe UI", 9)
+                        )
+        style.configure("TFrame",
+                        background=self.current_theme_colors["frame_bg"],
+                        foreground=self.current_theme_colors["frame_fg"]
+                        )
+        style.configure("TLabelframe",
+                        background=self.current_theme_colors["frame_bg"],
+                        foreground=self.current_theme_colors["frame_fg"]
+                        )
+        style.configure("TLabelframe.Label",
+                        background=self.current_theme_colors["frame_bg"],
+                        foreground=self.current_theme_colors["frame_fg"]
+                        )
+        style.configure("TButton",
+                        background=self.current_theme_colors["button_bg"],
+                        foreground=self.current_theme_colors["button_fg"],
+                        relief="flat"
+                        )
+        style.map("TButton",
+                  background=[("active", self.current_theme_colors["active_button_bg"])],
+                  foreground=[("active", self.current_theme_colors["active_button_fg"])]
+                  )
+        style.configure("TEntry",
+                        fieldbackground=self.current_theme_colors["entry_bg"],
+                        foreground=self.current_theme_colors["entry_fg"]
+                        )
+        style.configure("TText", # This won't work directly for tk.Text
+                        background=self.current_theme_colors["log_bg"],
+                        foreground=self.current_theme_colors["log_fg"]
+                        )
+        style.configure("TScrollbar",
+                        background=self.current_theme_colors["pb_trough_bg"],
+                        troughcolor=self.current_theme_colors["pb_trough_bg"],
+                        relief="flat"
+                        )
+        style.map("TScrollbar",
+                  background=[("active", self.current_theme_colors["active_button_bg"])]
+                  )
+        style.configure("Horizontal.TProgressbar",
+                        background=self.current_theme_colors["pb_chunk_bg"],
+                        troughcolor=self.current_theme_colors["pb_trough_bg"]
+                        )
+        style.configure("TLabel",
+                        background=self.current_theme_colors["bg"],
+                        foreground=self.current_theme_colors["fg"]
+                        )
+        
+        # OptionMenu styling (ttk.OptionMenu uses TCombobox style in recent Tk versions or TMenubutton)
+        style.configure("TMenubutton",
+                        background=self.current_theme_colors["dropdown_bg"],
+                        foreground=self.current_theme_colors["dropdown_fg"],
+                        fieldbackground=self.current_theme_colors["dropdown_bg"] # This is often the actual clickable area
+                        )
+        style.map("TMenubutton",
+                  background=[("active", self.current_theme_colors["dropdown_active_bg"])],
+                  foreground=[("active", self.current_theme_colors["dropdown_active_fg"])]
+                  )
+        
+        # Apply to tk.Text widget separately
+        self.log_text.config(bg=self.current_theme_colors["log_bg"], fg=self.current_theme_colors["log_fg"], insertbackground=self.current_theme_colors["entry_fg"]) # insertbackground changes caret color
+
+        # Update ToolTip colors (if they were already created)
+        # This requires iterating through widgets or modifying the ToolTip class to re-apply themes
+        # For simplicity, we assume tooltips are created after theme is somewhat set, or re-created.
+        # A more robust solution would involve a theme-manager for tooltips.
+        # For now, we'll ensure the default tooltip colors are updated based on the theme.
+        ToolTip.background_color = self.current_theme_colors["tooltip_bg"]
+        ToolTip.foreground_color = self.current_theme_colors["tooltip_fg"]
+
+
+    def open_theme_customizer(self):
+        customizer_window = tk.Toplevel(self.master)
+        customizer_window.title("Customize Theme")
+        customizer_window.transient(self.master) # Make it appear on top of the main window
+        customizer_window.grab_set() # Disable interaction with the main window
+
+        color_options = [
+            ("Background:", "bg"), ("Foreground:", "fg"),
+            ("Frame Background:", "frame_bg"), ("Frame Foreground:", "frame_fg"),
+            ("Entry Background:", "entry_bg"), ("Entry Foreground:", "entry_fg"),
+            ("Button Background:", "button_bg"), ("Button Foreground:", "button_fg"),
+            ("Active Button Background:", "active_button_bg"), ("Active Button Foreground:", "active_button_fg"),
+            ("Log Background:", "log_bg"), ("Log Foreground:", "log_fg"),
+            ("Progressbar Trough:", "pb_trough_bg"), ("Progressbar Chunk:", "pb_chunk_bg"),
+            ("Tooltip Background:", "tooltip_bg"), ("Tooltip Foreground:", "tooltip_fg"),
+            ("Dropdown Background:", "dropdown_bg"), ("Dropdown Foreground:", "dropdown_fg"),
+            ("Dropdown Active Background:", "dropdown_active_bg"), ("Dropdown Active Foreground:", "dropdown_active_fg"),
+        ]
 
         row = 0
-        current_theme_for_settings = self.active_theme_config # Directly modify the active theme
-
-        # Store references to color display frames for dynamic updates
-        color_display_frames = {}
-
-        def create_color_picker_row(parent_frame, label_text, color_key, current_color):
-            nonlocal row
-            tk.Label(parent_frame, text=label_text, bg=current_theme_for_settings["frame_bg"], fg=current_theme_for_settings["frame_fg"]).grid(row=row, column=0, sticky="w", pady=2, padx=5)
+        for label_text, color_key in color_options:
+            tk.Label(customizer_window, text=label_text, bg=self.current_theme_colors["bg"], fg=self.current_theme_colors["fg"]).grid(row=row, column=0, padx=5, pady=2, sticky="w")
             
-            # Display current color
-            color_frame = tk.Frame(parent_frame, width=20, height=20, bg=current_color, relief="solid", borderwidth=1)
-            color_frame.grid(row=row, column=1, pady=2, padx=5, sticky="w")
-            color_display_frames[color_key] = color_frame # Store reference
+            current_color = self.custom_colors.get("dark" if self.is_dark_mode else "light", {}).get(color_key, self.current_theme_colors.get(color_key, "#FFFFFF"))
+            
+            color_display = tk.Label(customizer_window, bg=current_color, width=8, relief="solid", borderwidth=1)
+            color_display.grid(row=row, column=1, padx=5, pady=2, sticky="ew")
 
-            def pick_color():
-                chosen_color = colorchooser.askcolor(title=f"Choose {label_text} Color", initialcolor=current_theme_for_settings[color_key])
-                if chosen_color and chosen_color[1]: # chosen_color is (RGB_tuple, hex_string)
-                    new_color_hex = chosen_color[1]
-                    current_theme_for_settings[color_key] = new_color_hex
-                    # When a color is changed in settings, update the active_theme_config and re-apply
-                    self.apply_theme(self.active_theme_config) # Re-apply the modified active theme
-                    color_frame.config(bg=new_color_hex) # Update settings window display
-
-            button = tk.Button(parent_frame, text="Change Color", command=pick_color,
-                               bg=current_theme_for_settings["button_bg"], fg=current_theme_for_settings["button_fg"],
-                               activebackground=current_theme_for_settings["active_button_bg"], activeforeground=current_theme_for_settings["button_fg"])
-            button.grid(row=row, column=2, pady=2, padx=5)
+            choose_button = ttk.Button(customizer_window, text="Choose", 
+                                        command=lambda kc=color_key, cd=color_display: self.choose_color(kc, cd))
+            choose_button.grid(row=row, column=2, padx=5, pady=2)
             row += 1
+        
+        save_button = ttk.Button(customizer_window, text="Apply Custom Theme", command=self.apply_custom_theme)
+        save_button.grid(row=row, column=0, columnspan=3, pady=10)
 
-        # Use the name of the currently active theme in the settings window title
-        settings_frame = tk.LabelFrame(settings_window, text=f"Customize '{self.current_theme_name.get()}' Theme Colors", 
-                                       padx=10, pady=10, bg=current_theme_for_settings["frame_bg"], fg=current_theme_for_settings["frame_fg"])
-        settings_frame.pack(padx=10, pady=10, fill="both", expand=True)
+        # Apply current theme to the customizer window itself
+        customizer_window.config(bg=self.current_theme_colors["bg"])
+        for child in customizer_window.winfo_children():
+            if isinstance(child, (tk.Label, ttk.Label, tk.Button, ttk.Button)):
+                child.config(bg=self.current_theme_colors["bg"], fg=self.current_theme_colors["fg"])
+            # Special handling for ttk buttons to ensure their style is applied
+            if isinstance(child, ttk.Button):
+                style = ttk.Style()
+                style.map("TButton",
+                          background=[("active", self.current_theme_colors["active_button_bg"])],
+                          foreground=[("active", self.current_theme_colors["active_button_fg"])]
+                          )
 
-        for key, display_name in color_map.items():
-            create_color_picker_row(settings_frame, display_name, key, current_theme_for_settings.get(key, "#000000")) # Provide a fallback color
 
-        def reset_colors():
-            # Get the original preset colors (either from default or user-defined)
-            original_preset_colors = None
-            selected_theme_name_for_reset = self.current_theme_name.get()
-            if selected_theme_name_for_reset in self.preset_themes:
-                original_preset_colors = self.preset_themes[selected_theme_name_for_reset].copy()
-            elif selected_theme_name_for_reset in self.user_defined_themes:
-                original_preset_colors = self.user_defined_themes[selected_theme_name_for_reset].copy()
+    def choose_color(self, color_key, color_display_widget):
+        initial_color = color_display_widget.cget("bg")
+        color_code = colorchooser.askcolor(initialcolor=initial_color)[1]
+        if color_code:
+            color_display_widget.config(bg=color_code)
+            if self.is_dark_mode:
+                self.custom_colors.setdefault("dark", {})[color_key] = color_code
             else:
-                messagebox.showwarning("Error", "Could not find original theme colors to reset for the current theme.")
-                return
+                self.custom_colors.setdefault("light", {})[color_key] = color_code
+            self.apply_theme(self.is_dark_mode) # Apply immediately to see changes
 
-            self.active_theme_config.update(original_preset_colors) # Update the active config with original preset colors
-            self.apply_theme(self.active_theme_config) # Re-apply the reset active theme
 
-            # Update settings window display as well
-            updated_theme = self.active_theme_config # Now this holds the reset colors
-            settings_frame.config(bg=updated_theme["frame_bg"], fg=updated_theme["frame_fg"])
-            for child in settings_frame.winfo_children():
-                if isinstance(child, tk.Label):
-                    child.config(bg=updated_theme["frame_bg"], fg=updated_theme["frame_fg"])
-                elif isinstance(child, tk.Button):
-                    if child["text"] == "Reset All Colors to Default":
-                        child.config(bg=updated_theme["button_bg"], fg=updated_theme["button_fg"],
-                                     activebackground=updated_theme["active_button_bg"], activeforeground=updated_theme["button_fg"])
-                    else: # For the "Change Color" buttons
-                        child.config(bg=updated_theme["button_bg"], fg=updated_theme["button_fg"],
-                                     activebackground=updated_theme["active_button_bg"], activeforeground=updated_theme["button_fg"])
-            for key, frame in color_display_frames.items(): # Update color display frames
-                frame.config(bg=updated_theme.get(key, "#000000")) 
-
-            messagebox.showinfo("Colors Reset", f"Colors for '{self.current_theme_name.get()}' theme have been reset to default values.")
-
-        reset_button = tk.Button(settings_window, text="Reset All Colors to Default", command=reset_colors,
-                                bg=current_theme_for_settings["button_bg"], fg=current_theme_for_settings["button_fg"],
-                                activebackground=current_theme_for_settings["active_button_bg"], activeforeground=current_theme_for_settings["button_fg"])
-        reset_button.pack(pady=10)
-
-        # Add "Save Current Theme As" button
-        save_theme_button = tk.Button(settings_window, text="Save Current Theme As...", command=self.save_current_theme_as_preset,
-                                bg=current_theme_for_settings["button_bg"], fg=current_theme_for_settings["button_fg"],
-                                activebackground=current_theme_for_settings["active_button_bg"], activeforeground=current_theme_for_settings["button_fg"])
-        save_theme_button.pack(pady=5) # Below Reset button
-
-        # Handle closing of the settings window
-        settings_window.protocol("WM_DELETE_WINDOW", settings_window.destroy)
+    def apply_custom_theme(self):
+        # This function is called when "Apply Custom Theme" is clicked in the customizer
+        # The self.custom_colors dictionary is already updated by choose_color
+        self.apply_theme(self.is_dark_mode)
+        self.append_to_log("Custom theme applied.")
+        messagebox.showinfo("Theme Customizer", "Custom theme applied successfully!")
 
     def save_current_theme_as_preset(self):
-        """Prompts user for a name and saves the current active theme as a new preset."""
-        name_window = tk.Toplevel(self.master)
-        name_window.title("Save Theme As")
-        name_window.geometry("300x120")
-        name_window.transient(self.master)
-        name_window.grab_set()
+        preset_name = tk.simpledialog.askstring("Save Theme Preset", "Enter a name for the new theme preset:")
+        if preset_name:
+            if preset_name in self.custom_presets:
+                if not messagebox.askyesno("Overwrite Preset", f"Preset '{preset_name}' already exists. Do you want to overwrite it?"):
+                    return
 
-        name_window.config(bg=self.active_theme_config["bg"])
+            theme_data = {
+                "is_dark_mode": self.is_dark_mode,
+                "colors": self.current_theme_colors # Save the currently active colors
+            }
+            if self.custom_colors.get("light") or self.custom_colors.get("dark"):
+                theme_data["custom_colors"] = self.custom_colors # Save custom modifications if any
 
-        label = tk.Label(name_window, text="Enter a name for your theme:", 
-                         bg=self.active_theme_config["frame_bg"], fg=self.active_theme_config["frame_fg"])
-        label.pack(pady=10)
+            self.custom_presets[preset_name] = theme_data
+            self.save_custom_presets()
+            self.update_preset_theme_menu()
+            self.append_to_log(f"Theme preset '{preset_name}' saved.")
+            messagebox.showinfo("Save Preset", f"Theme preset '{preset_name}' saved successfully!")
 
-        theme_name_var = tk.StringVar()
-        name_entry = tk.Entry(name_window, textvariable=theme_name_var, width=30,
-                              bg=self.active_theme_config["entry_bg"], fg=self.active_theme_config["entry_fg"], insertbackground=self.active_theme_config["entry_fg"])
-        name_entry.pack(pady=5)
-        name_entry.focus_set()
+    def load_custom_presets(self):
+        try:
+            with open("theme_presets.json", "r") as f:
+                self.custom_presets = json.load(f)
+        except FileNotFoundError:
+            self.custom_presets = {}
+        except json.JSONDecodeError as e:
+            self.append_to_log(f"Error decoding theme_presets.json: {e}")
+            self.custom_presets = {}
 
-        def confirm_save():
-            new_theme_name = theme_name_var.get().strip()
-            if not new_theme_name:
-                messagebox.showwarning("Input Error", "Theme name cannot be empty.")
-                return
+    def save_custom_presets(self):
+        with open("theme_presets.json", "w") as f:
+            json.dump(self.custom_presets, f, indent=4)
+
+    def apply_preset_theme(self, preset_name=None):
+        if preset_name == "Default Light":
+            self.is_dark_mode = False
+            self.custom_colors = {"light": {}, "dark": {}} # Clear custom colors
+            self.apply_theme(False)
+            self.current_preset_name = "Default Light"
+            self.append_to_log("Applied 'Default Light' theme preset.")
+        elif preset_name == "Default Dark":
+            self.is_dark_mode = True
+            self.custom_colors = {"light": {}, "dark": {}} # Clear custom colors
+            self.apply_theme(True)
+            self.current_preset_name = "Default Dark"
+            self.append_to_log("Applied 'Default Dark' theme preset.")
+        elif preset_name and preset_name in self.custom_presets:
+            preset_data = self.custom_presets[preset_name]
+            self.is_dark_mode = preset_data.get("is_dark_mode", False)
+            # Load colors from the preset. If custom_colors were saved, use them.
+            # Otherwise, reset custom_colors for the current mode.
+            if "custom_colors" in preset_data:
+                self.custom_colors = preset_data["custom_colors"].copy()
+            else:
+                self.custom_colors = {"light": {}, "dark": {}} # No custom colors saved in this preset
+
+            self.apply_theme(self.is_dark_mode) # Apply the base theme
             
-            # Combine preset and user-defined themes for validation
-            all_theme_names = list(self.preset_themes.keys()) + list(self.user_defined_themes.keys())
-            if new_theme_name in all_theme_names:
-                messagebox.showwarning("Name Exists", f"A theme named '{new_theme_name}' already exists. Please choose a different name.")
-                return
+            # Now, explicitly apply the saved colors from the preset, overwriting defaults if needed.
+            # This ensures that even if custom_colors were not explicitly saved, the exact colors of the preset are restored.
+            if "colors" in preset_data:
+                # The 'colors' key in preset_data should contain the final resolved colors when it was saved.
+                # We can apply these directly, or merge them. For simplicity and correctness in restoring,
+                # we'll update the current_theme_colors with these values and then re-apply.
+                if self.is_dark_mode:
+                    self.current_theme_colors.update(preset_data["colors"])
+                else:
+                    self.current_theme_colors.update(preset_data["colors"])
+                self.apply_theme(self.is_dark_mode) # Re-apply to ensure all widgets get the exact saved colors
 
-            # Save a copy of the current active theme config
-            self.user_defined_themes[new_theme_name] = self.active_theme_config.copy()
-            
-            # Update combobox values
-            self._update_theme_combobox_values()
-            
-            # Set the new theme as current and apply it
-            self.current_theme_name.set(new_theme_name)
-            self.theme_combobox.set(new_theme_name) # Update combobox display
-            self.apply_theme(self.user_defined_themes[new_theme_name]) # Re-apply to ensure any new widget styling is picked up
-
-            self.append_to_log(f"Theme '{new_theme_name}' saved successfully.")
-            messagebox.showinfo("Theme Saved", f"Your theme '{new_theme_name}' has been saved.")
-            name_window.destroy()
-
-        save_button = tk.Button(name_window, text="Save", command=confirm_save,
-                               bg=self.active_theme_config["button_bg"], fg=self.active_theme_config["button_fg"],
-                               activebackground=self.active_theme_config["active_button_bg"], activeforeground=self.active_theme_config["button_fg"])
-        save_button.pack(pady=10)
-
-        name_window.protocol("WM_DELETE_WINDOW", name_window.destroy)
-
-    def browse_exe_path(self):
-        filepath = filedialog.askopenfilename(
-            title="Select CS2 Dedicated Server Executable",
-            filetypes=[("Executable files", "*.exe")]
-        )
-        if filepath:
-            self.cs2_exe_path.set(filepath)
-            self.append_to_log(f"CS2 executable path set to: {filepath}")
-
-    def auto_detect_cs2_path(self):
-        # Use the utility function from server_utils
-        found_path = auto_detect_cs2_path(log_callback=self.append_to_log)
-        if found_path:
-            self.cs2_exe_path.set(found_path)
-            messagebox.showinfo("Auto-Detection Complete", f"CS2 executable found at:\n{found_path}")
+            self.current_preset_name = preset_name
+            self.append_to_log(f"Applied theme preset: '{preset_name}'.")
         else:
-            messagebox.showwarning("Auto-Detection Failed", "Could not automatically find CS2 executable.\nPlease browse for it manually.")
+            # Fallback for when no preset name is provided or it's not found
+            # This might happen on initial load if config specifies an unknown preset
+            self.apply_theme(self.is_dark_mode)
+            self.append_to_log(f"Applied default theme (Dark Mode: {self.is_dark_mode}).")
 
-    def _detect_ip_address_gui(self):
-        # Use the utility function from server_utils
-        ip_address = detect_ip_address(log_callback=self.append_to_log)
-        if ip_address:
-            self.pc_ip_address.set(ip_address)
-        else:
-            messagebox.showerror("IP Detection Error", "Could not detect IP address.\nPlease enter it manually.")
+
+    def delete_theme_preset(self):
+        if not self.custom_presets:
+            messagebox.showinfo("Delete Preset", "No custom presets to delete.")
+            return
+
+        preset_names = list(self.custom_presets.keys())
+        # Create a simple dialog for selection
+        dialog = tk.Toplevel(self.master)
+        dialog.title("Delete Theme Preset")
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        tk.Label(dialog, text="Select preset to delete:").pack(pady=10)
+        
+        listbox_frame = ttk.Frame(dialog)
+        listbox_frame.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
+
+        listbox = tk.Listbox(listbox_frame, height=len(preset_names) if preset_names else 1)
+        listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar = ttk.Scrollbar(listbox_frame, orient="vertical", command=listbox.yview)
+        scrollbar.pack(side=tk.RIGHT, fill="y")
+        listbox.config(yscrollcommand=scrollbar.set)
+
+        for name in preset_names:
+            listbox.insert(tk.END, name)
+
+        def confirm_delete():
+            selected_indices = listbox.curselection()
+            if selected_indices:
+                selected_preset_name = listbox.get(selected_indices[0])
+                if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the preset '{selected_preset_name}'?"):
+                    del self.custom_presets[selected_preset_name]
+                    self.save_custom_presets()
+                    self.update_preset_theme_menu()
+                    self.append_to_log(f"Theme preset '{selected_preset_name}' deleted.")
+                    messagebox.showinfo("Delete Preset", f"Preset '{selected_preset_name}' deleted successfully!")
+                    dialog.destroy()
+            else:
+                messagebox.showwarning("No Selection", "Please select a preset to delete.")
+
+        ttk.Button(dialog, text="Delete Selected", command=confirm_delete).pack(pady=10)
+        dialog.wait_window() # Wait for the dialog to close
 
 
     def append_to_log(self, message):
-        self.log_text.config(state="normal")
+        self.log_text.config(state=tk.NORMAL)
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.see(tk.END)
-        self.log_text.config(state="disabled")
+        self.log_text.config(state=tk.DISABLED)
 
-    def read_server_output(self):
-        if self.server_process:
-            while not self.stop_log_thread.is_set():
-                # Readline with timeout for cleaner shutdown
-                try:
-                    line = self.server_process.stdout.readline()
-                except ValueError: # stdin/stdout closed
-                    break
-                
-                if not line:
-                    if self.server_process.poll() is not None: # Process has terminated
-                        break
-                    time.sleep(0.1) # Short delay to prevent busy-waiting
-                    continue
-                try:
-                    decoded_line = line.decode('utf-8', errors='replace').strip()
-                    self.master.after(0, self.append_to_log, decoded_line)
-                except Exception as e:
-                    self.master.after(0, self.append_to_log, f"Error decoding line from server output: {e}")
-            self.master.after(0, self.append_to_log, "Server output stream closed.")
-        else:
-            self.master.after(0, self.append_to_log, "No server process to read from.")
+    def browse_path(self):
+        # Allow user to select the cs2.exe file directly
+        filepath = filedialog.askopenfilename(
+            title="Select cs2.exe",
+            filetypes=[("CS2 Executable", "cs2.exe")]
+        )
+        if filepath:
+            # Check if the selected path is indeed cs2.exe in the expected directory structure
+            # e.g., .../Steam/steamapps/common/Counter-Strike Global Offensive/game/bin/win64/cs2.exe
+            expected_tail = os.path.join("game", "bin", "win64", "cs2.exe")
+            if expected_tail in filepath:
+                self.path_entry.delete(0, tk.END)
+                self.path_entry.insert(0, filepath)
+                self.append_to_log(f"CS2 path set to: {filepath}")
+            else:
+                messagebox.showwarning("Invalid Path", "Please select the 'cs2.exe' file located in '...Counter-Strike Global Offensive\\game\\bin\\win64\\'.")
+                self.append_to_log(f"Invalid path selected: {filepath}")
+
+    def auto_detect_cs2_path(self):
+        self.append_to_log("Attempting to autodetect CS2 path...")
+        try:
+            cs2_path = auto_detect_cs2_path(log_callback=self.append_to_log)
+            if cs2_path:
+                self.path_entry.delete(0, tk.END)
+                self.path_entry.insert(0, cs2_path)
+                self.append_to_log(f"Autodetected CS2 path: {cs2_path}")
+            else:
+                messagebox.showwarning("Autodetect Failed", "Could not automatically detect CS2 path. Please browse manually.")
+                self.append_to_log("CS2 path autodetect failed.")
+        except Exception as e:
+            messagebox.showerror("Autodetect Error", f"An error occurred during autodetect: {e}")
+            self.append_to_log(f"Error during autodetect: {e}")
 
 
     def start_server(self):
+        cs2_exe_path = self.path_entry.get()
+        if not cs2_exe_path or not os.path.exists(cs2_exe_path):
+            messagebox.showerror("Error", "Invalid CS2 server executable path.")
+            self.append_to_log("Error: Invalid CS2 server executable path.")
+            return
+
         if self.server_process and self.server_process.poll() is None:
-            messagebox.showinfo("Server Status", "Server is already running.")
+            messagebox.showinfo("Info", "Server is already running.")
+            self.append_to_log("Server is already running.")
             return
 
-        exe_path = self.cs2_exe_path.get().strip()
-        pc_ip = self.pc_ip_address.get().strip()
-        selected_game_mode_name = self.selected_game_mode_display.get()
-        map_name = self.map_name.get().strip()
-        max_players = self.max_players.get().strip()
-        server_port = self.server_port.get().strip()
-
-        # --- Input Validation ---
-        if not exe_path:
-            messagebox.showerror("Error", "Please specify the path to the CS2 server executable.")
-            return
-        if not os.path.exists(exe_path):
-            messagebox.showerror("Error", f"Executable not found at: {exe_path}")
-            self.append_to_log(f"Error: Executable not found at {exe_path}")
-            return
-        if not pc_ip:
-            messagebox.showerror("Error", "Please enter or detect your PC's IP address.")
-            return
-        if not map_name:
-            messagebox.showerror("Error", "Please select a map name.")
-            return
-        if map_name not in self.flattened_map_list:
-            messagebox.showwarning("Warning", "The selected map might not be an official CS2 map or may require workshop content. Proceed with caution.")
-            self.append_to_log(f"Warning: Map '{map_name}' is not in the known official list. This might require workshop subscriptions or custom content setup.")
-
-        try:
-            max_players_int = int(max_players)
-            if not (1 <= max_players_int <= 64):
-                messagebox.showerror("Error", "Max Players must be a number between 1 and 64.")
-                return
-        except ValueError:
-            messagebox.showerror("Error", "Max Players must be a valid number.")
-            return
-        try:
-            server_port_int = int(server_port)
-            if not (1024 <= server_port_int <= 65535):
-                messagebox.showerror("Error", "Server Port must be a number between 1024 and 65535.")
-                return
-        except ValueError:
-            messagebox.showerror("Error", "Server Port must be a valid number.")
-            return
-
-        # --- Game Mode and Map Logic (Enhanced) ---
-        game_type_val, game_mode_val = self.all_game_modes.get(selected_game_mode_name, ("0", "0"))
-
-        # Check for map type consistency with game mode
-        map_prefix = map_name.split('_')[0].lower()
+        # Construct command
+        # Example: C:\Steam\steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe -dedicated -console +map de_dust2 +game_type 0 +game_mode 1
         
-        if selected_game_mode_name == "Arms Race":
-            if map_prefix != "ar":
-                messagebox.showwarning(
-                    "Map Warning",
-                    f"Arms Race is typically played on 'ar_' maps (e.g., 'ar_baggage'). "
-                    f"You have selected '{map_name}'. The server might not function as expected."
-                )
-                self.append_to_log(
-                    f"Warning: Arms Race selected with map '{map_name}'. "
-                    "Typically played on specific Arms Race maps (e.g., 'ar_baggage')."
-                )
-        elif selected_game_mode_name == "Wingman":
-            # Wingman typically uses adapted 'de_' maps or specific wingman maps
-            wingman_map_prefixes = ["de", "wm"] # wm_ prefix if any official wingman maps
-            if map_prefix not in wingman_map_prefixes:
-                messagebox.showwarning(
-                    "Map Warning",
-                    f"Wingman is typically played on adapted 'de_' maps (e.g., 'de_shortdust', 'de_lake'). "
-                    f"You have selected '{map_name}'. The server might not function as expected."
-                )
-                self.append_to_log(
-                    f"Warning: Wingman selected with map '{map_name}'. "
-                    "Typically played on specific adapted maps."
-                )
-        elif selected_game_mode_name in ["Casual", "Competitive"]:
-            if map_prefix not in ["de", "cs"]: # Bomb Defusal or Hostage Rescue
-                messagebox.showwarning(
-                    "Map Warning",
-                    f"{selected_game_mode_name} mode is typically played on 'de_' or 'cs_' maps. "
-                    f"You have selected '{map_name}'. This might lead to unexpected server behavior."
-                )
-                self.append_to_log(
-                    f"Warning: {selected_game_mode_name} mode selected with a non-'de_'/non-'cs_' map ('{map_name}')."
-                )
-        elif selected_game_mode_name == "Deathmatch":
-            # Deathmatch can be played on any map, but typically uses de_ or cs_ maps
-            pass # No specific prefix check, as it's flexible
+        # Determine the correct server start command based on known patterns
+        # For CS2, it's typically 'cs2.exe -dedicated'
+        server_dir = os.path.dirname(cs2_exe_path)
+        game_dir = os.path.dirname(server_dir) # Should be '...\game\bin\win64' -> '...\game'
+        csgo_dir = os.path.dirname(game_dir) # Should be '...\Counter-Strike Global Offensive'
 
-        # --- Construct Command Arguments ---
-        cmd_args = [
-            f"-dedicated",
-            f"-ip {pc_ip}",
-            f"-port {server_port}",
-            f"+game_type {game_type_val}",
-            f"+game_mode {game_mode_val}",
+        # This is important: The dedicated server needs to be run from the CSGO root directory
+        # where the 'game' folder resides.
+        
+        map_name = self.map_var.get()
+        game_mode = self.gamemode_dropdown.get()
+        max_players = self.max_players_entry.get()
+        port = self.port_entry.get()
+        rcon_password = self.rcon_password_entry.get()
+        server_name = self.server_name_entry.get()
+        additional_args = self.additional_args_entry.get()
+
+        # Map game mode string to type and mode numbers
+        game_type = 0 # Classic
+        game_mode_num = 1 # Competitive
+        if game_mode == "Casual":
+            game_type = 0
+            game_mode_num = 0
+        elif game_mode == "Deathmatch":
+            game_type = 1
+            game_mode_num = 2
+        elif game_mode == "Arms Race":
+            game_type = 1
+            game_mode_num = 0
+
+        command = [
+            cs2_exe_path,
+            "-dedicated",
+            "-console",
             f"+map {map_name}",
-            f"-maxplayers {max_players}",
+            f"+game_type {game_type}",
+            f"+game_mode {game_mode_num}",
+            f"+maxplayers {max_players}",
+            f"+ip {detect_ip_address(self.append_to_log)}", # Auto-detect IP
+            f"-port {port}"
         ]
 
-        if self.server_password.get():
-            cmd_args.append(f"+sv_password \"{self.server_password.get()}\"")
-        if self.rcon_password.get():
-            cmd_args.append(f"+rcon_password \"{self.rcon_password.get()}\"")
-
-        if self.additional_args.get():
-            try:
-                # shlex.split handles quoted arguments correctly
-                additional_parsed_args = shlex.split(self.additional_args.get())
-                cmd_args.extend(additional_parsed_args)
-            except ValueError as e:
-                messagebox.showerror("Error", f"Invalid Additional Arguments format: {e}")
-                self.append_to_log(f"Error parsing additional arguments: {e}")
-                return
-
-        full_command = [exe_path] + cmd_args
+        if rcon_password:
+            command.append(f"+rcon_password {shlex.quote(rcon_password)}") # Use shlex.quote for safety
+        if server_name:
+            # server_name_escaped = shlex.quote(server_name) # Server name might not need quoting depending on server parsing
+            command.append(f'+hostname "{server_name}"') # Use quotes for server name
+        if additional_args:
+            command.extend(shlex.split(additional_args)) # Split additional args safely
 
         try:
-            # Determine the working directory for the server process
-            # It should be the directory containing 'game' folder, usually Steam/steamapps/common/Counter-Strike Global Offensive
-            server_bin_path = os.path.dirname(exe_path) # e.g., .../win64
-            server_game_path = os.path.dirname(server_bin_path) # e.g., .../bin
-            server_base_path = os.path.dirname(server_game_path) # e.g., .../game
-            server_dir = os.path.dirname(server_base_path) # e.g., .../Counter-Strike Global Offensive
-
-            creation_flags = 0
-            if os.name == 'nt': # For Windows, hide the console window
-                creation_flags = subprocess.CREATE_NO_WINDOW
-
+            self.append_to_log(f"Starting server with command: {' '.join(command)}")
+            # Use preexec_fn=os.setsid to create a new process group on Unix-like systems
+            # This makes it easier to terminate the process and its children.
+            # For Windows, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP serves a similar purpose.
+            
+            # Change working directory to the CSGO root for the server process
             self.server_process = subprocess.Popen(
-                full_command,
-                cwd=server_dir, # Set working directory to the CS2 install root
+                command,
+                cwd=csgo_dir, # Set the working directory
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT, # Redirect stderr to stdout for combined log
-                text=False, # Output is bytes, needs decoding
-                creationflags=creation_flags
-                # If you want to enable sending commands via stdin, add:
-                # stdin=subprocess.PIPE
+                stderr=subprocess.STDOUT, # Redirect stderr to stdout
+                text=True, # Decode stdout/stderr as text
+                bufsize=1, # Line-buffered
+                universal_newlines=True, # Handle different line endings
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0 # For Windows
             )
-            self.append_to_log(f"Starting server with command: {' '.join(shlex.quote(arg) for arg in full_command)}")
-            self.append_to_log(f"Working directory set to: {server_dir}")
-            self.append_to_log("Server process started. Please wait for it to load.")
-
-            self.stop_log_thread.clear() # Ensure the event is clear for a new thread
-            self.output_log_thread = threading.Thread(target=self.read_server_output)
-            self.output_log_thread.daemon = True # Daemonize thread so it exits with main app
+            self.stop_log_thread.clear()
+            self.output_log_thread = threading.Thread(target=self.read_output, daemon=True)
             self.output_log_thread.start()
 
+            self.start_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.NORMAL)
+            messagebox.showinfo("Server Control", "Server started successfully!")
+            self.append_to_log("Server process initiated.")
+
         except FileNotFoundError:
-            messagebox.showerror("Error", f"The executable '{exe_path}' was not found. Please check the path.")
-            self.append_to_log(f"Error: Executable not found at {exe_path}")
-            self.server_process = None
+            messagebox.showerror("Error", "CS2 executable not found. Check path.")
+            self.append_to_log("Error: CS2 executable not found.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start server: {e}")
             self.append_to_log(f"Error starting server: {e}")
-            self.server_process = None
+
+    def read_output(self):
+        for line in iter(self.server_process.stdout.readline, ''):
+            if self.stop_log_thread.is_set():
+                break
+            self.append_to_log(line.strip())
+        self.server_process.stdout.close()
+        self.append_to_log("Server output stream closed.")
+
 
     def stop_server(self):
         if self.server_process and self.server_process.poll() is None:
-            self.append_to_log("Attempting to stop server...")
+            self.append_to_log("Stopping server...")
             try:
-                self.stop_log_thread.set() # Signal the log thread to stop
+                # Terminate the process group to ensure all child processes are stopped
+                if os.name == 'nt':
+                    # On Windows, use taskkill with /F (force) and /T (tree kill) on the process group ID
+                    subprocess.run(f"taskkill /F /T /PID {self.server_process.pid}", shell=True, check=True,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                else:
+                    # On Unix-like systems, kill the process group
+                    os.killpg(os.getpgid(self.server_process.pid), signal.SIGTERM) # SIGTERM for graceful shutdown
+                    time.sleep(1) # Give it a moment
+                    if self.server_process.poll() is None: # If still running, force kill
+                        os.killpg(os.getpgid(self.server_process.pid), signal.SIGKILL)
+
+
+                self.stop_log_thread.set() # Signal the log reading thread to stop
                 if self.output_log_thread and self.output_log_thread.is_alive():
-                    self.output_log_thread.join(timeout=3) # Wait for log thread to finish
+                    self.output_log_thread.join(timeout=5) # Wait for thread to finish
 
-                self.server_process.terminate() # Request graceful termination
-                self.append_to_log("Sent terminate signal to server process.")
-
-                try:
-                    self.server_process.wait(timeout=10) # Wait a bit for it to close
-                    if self.server_process.poll() is None: # Still running?
-                        self.server_process.kill() # Force kill
-                        self.append_to_log("Server process forcefully terminated.")
-                    else:
-                        self.append_to_log("Server process terminated successfully.")
-                except subprocess.TimeoutExpired:
-                    self.server_process.kill() # Force kill if timeout
-                    self.append_to_log("Server process did not terminate in time, forcefully killed.")
+                self.server_process.wait(timeout=5) # Wait for process to terminate
+                self.append_to_log("Server stopped.")
+                messagebox.showinfo("Server Control", "Server stopped successfully.")
 
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to stop server: {e}")
                 self.append_to_log(f"Error stopping server: {e}")
+                messagebox.showerror("Error", f"Failed to stop server: {e}")
             finally:
                 self.server_process = None
-                self.output_log_thread = None
-                self.stop_log_thread.clear() # Clear for next start
+                self.start_button.config(state=tk.NORMAL)
+                self.stop_button.config(state=tk.DISABLED)
         else:
-            messagebox.showinfo("Server Status", "No server process is currently running.")
-            # Ensure state is clean even if process somehow detached but wasn't None
-            if self.server_process:
-                self.server_process = None
-                self.output_log_thread = None
-                self.stop_log_thread.clear()
+            self.append_to_log("No server is currently running.")
+            messagebox.showinfo("Info", "No server is currently running.")
 
-    def send_console_command(self):
-        """Sends a console command to the running server."""
-        if not self.server_process or self.server_process.poll() is not None:
-            messagebox.showwarning("Server Not Running", "No server is currently running to send commands to.")
-            self.append_to_log("Cannot send command: Server not running.")
-            return
-
-        command = self.command_entry.get().strip()
-        if not command:
-            messagebox.showwarning("Empty Command", "Please enter a command to send.")
-            return
-
-        try:
-            self.append_to_log(f"Attempting to send command: {command}")
-            messagebox.showinfo("Command Sent (Logged)", 
-                                f"Command '{command}' sent. Note: Direct console command sending via GUI might not be fully supported by CS2 dedicated server stdout/stdin. "
-                                "For robust command execution, consider implementing RCON.")
-
-            # Clear the command entry after sending
-            self.command_entry.delete(0, tk.END)
-
-        except Exception as e:
-            self.append_to_log(f"Error sending command: {e}")
-            messagebox.showerror("Command Error", f"Failed to send command: {e}")
-
-    def send_command_on_enter(self, event=None):
-        """Called when the Enter key is pressed in the command entry."""
-        self.send_console_command()
 
     def save_config(self):
-        """Saves current server configuration and custom theme colors to a JSON file."""
         config_data = {
-            "cs2_exe_path": self.cs2_exe_path.get(),
-            "pc_ip_address": self.pc_ip_address.get(),
-            "map_name": self.map_name.get(),
-            "max_players": self.max_players.get(),
-            "server_port": self.server_port.get(),
-            "server_password": self.server_password.get(),
-            "rcon_password": self.rcon_password.get(),
-            "selected_game_mode_display": self.selected_game_mode_display.get(),
-            "additional_args": self.additional_args.get(),
-            "current_theme_name": self.current_theme_name.get(), # Save the selected preset name
-            "active_theme_config_colors": self.active_theme_config, # Save the currently active (potentially customized) colors
-            "user_defined_themes": self.user_defined_themes # Save user-defined themes
+            "cs2_path": self.path_entry.get(),
+            "map": self.map_var.get(),
+            "gamemode": self.gamemode_var.get(),
+            "max_players": self.max_players_entry.get(),
+            "port": self.port_entry.get(),
+            "rcon_password": self.rcon_password_entry.get(),
+            "server_name": self.server_name_entry.get(),
+            "additional_args": self.additional_args_entry.get(),
+            "is_dark_mode": self.is_dark_mode,
+            "custom_colors": self.custom_colors, # Save custom colors
+            "current_preset_name": self.current_preset_name # Save the name of the active preset
         }
-
-        filepath = filedialog.asksaveasfilename(
-            defaultextension=".json", # Re-added, if it was causing issues previously, it might be due to a specific Tkinter version or environment.
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            title="Save Server Configuration"
-        )
+        filepath = filedialog.asksaveasfilename(defaultextension=".json",
+                                                filetypes=[("JSON files", "*.json")],
+                                                title="Save Configuration As")
         if filepath:
             try:
-                with open(filepath, 'w') as f:
+                with open(filepath, "w") as f:
                     json.dump(config_data, f, indent=4)
                 self.append_to_log(f"Configuration saved to: {filepath}")
                 messagebox.showinfo("Save Config", "Configuration saved successfully!")
@@ -1028,45 +707,43 @@ class CS2ServerLauncher:
                 messagebox.showerror("Save Config Error", f"Failed to save configuration: {e}")
 
     def load_config(self):
-        """Loads server configuration and custom theme colors from a JSON file."""
-        filepath = filedialog.askopenfilename(
-            defaultextextension=".json",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            title="Load Server Configuration"
-        )
+        filepath = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")],
+                                                title="Load Configuration From")
         if filepath:
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, "r") as f:
                     config_data = json.load(f)
-                
-                # Update Tkinter variables
-                self.cs2_exe_path.set(config_data.get("cs2_exe_path", ""))
-                self.pc_ip_address.set(config_data.get("pc_ip_address", ""))
-                self.map_name.set(config_data.get("map_name", "de_dust2"))
-                self.max_players.set(config_data.get("max_players", "10"))
-                self.server_port.set(config_data.get("server_port", "27015"))
-                self.server_password.set(config_data.get("server_password", ""))
-                self.rcon_password.set(config_data.get("rcon_password", ""))
-                self.selected_game_mode_display.set(config_data.get("selected_game_mode_display", "Casual"))
-                self.additional_args.set(config_data.get("additional_args", "-usercon -dedicated"))
-                
-                # Load theme preference and colors
-                loaded_theme_name = config_data.get("current_theme_name", "Dark Mode - Default") # Changed default to Dark Mode
-                loaded_active_colors = config_data.get("active_theme_config_colors", None)
-                loaded_user_defined_themes = config_data.get("user_defined_themes", {}) # Load user-defined themes
 
-                self.user_defined_themes = loaded_user_defined_themes # Update user-defined themes dictionary
-                self._update_theme_combobox_values() # Refresh combobox with newly loaded user themes
+                self.path_entry.delete(0, tk.END)
+                self.path_entry.insert(0, config_data.get("cs2_path", ""))
+                self.map_var.set(config_data.get("map", "de_dust2"))
+                self.gamemode_var.set(config_data.get("gamemode", "Competitive"))
+                self.max_players_entry.delete(0, tk.END)
+                self.max_players_entry.insert(0, config_data.get("max_players", "10"))
+                self.port_entry.delete(0, tk.END)
+                self.port_entry.insert(0, config_data.get("port", "27015"))
+                self.rcon_password_entry.delete(0, tk.END)
+                self.rcon_password_entry.insert(0, config_data.get("rcon_password", ""))
+                self.server_name_entry.delete(0, tk.END)
+                self.server_name_entry.insert(0, config_data.get("server_name", "My CS2 Server"))
+                self.additional_args_entry.delete(0, tk.END)
+                self.additional_args_entry.insert(0, config_data.get("additional_args", ""))
 
-                self.current_theme_name.set(loaded_theme_name)
-                self.theme_combobox.set(loaded_theme_name) 
+                # Load theme preference and custom colors
+                loaded_is_dark = config_data.get("is_dark_mode", False)
+                loaded_custom_colors = config_data.get("custom_colors", {"light": {}, "dark": {}})
+                loaded_preset_name = config_data.get("current_preset_name", None)
 
-                if loaded_active_colors:
-                    # If specific customized colors were saved, use them directly
-                    self.apply_theme(loaded_active_colors)
+                self.custom_colors = loaded_custom_colors # Set loaded custom colors
+
+                if loaded_preset_name:
+                    # If a specific preset name was saved, try to apply it.
+                    # This will handle both default and custom presets.
+                    self.apply_preset_theme(loaded_preset_name)
                 else:
-                    # Otherwise, apply the preset based on the loaded name (for older configs or if no custom colors were saved)
-                    self.apply_preset_theme() 
+                    # Otherwise, apply the theme based on the loaded is_dark_mode flag,
+                    # which will also incorporate any loaded custom_colors for that mode.
+                    self.apply_theme(loaded_is_dark) 
 
                 self.append_to_log(f"Configuration loaded from: {filepath}")
                 messagebox.showinfo("Load Config", "Configuration loaded successfully!")
