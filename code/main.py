@@ -354,13 +354,15 @@ class CS2ServerLauncher:
     def choose_color(self, color_key, color_display_widget):
         initial_color = color_display_widget.cget("bg")
         color_code = colorchooser.askcolor(initialcolor=initial_color)[1]
-        if color_code:
-            color_display_widget.config(bg=color_code)
-            if self.is_dark_mode:
-                self.custom_colors.setdefault("dark", {})[color_key] = color_code
-            else:
-                self.custom_colors.setdefault("light", {})[color_key] = color_code
-            self.apply_theme(self.is_dark_mode) # Apply immediately to see changes
+        if not color_code:
+            return
+        
+        color_display_widget.config(bg=color_code)
+        if self.is_dark_mode:
+            self.custom_colors.setdefault("dark", {})[color_key] = color_code
+        else:
+            self.custom_colors.setdefault("light", {})[color_key] = color_code
+        self.apply_theme(self.is_dark_mode) # Apply immediately to see changes
 
 
     def apply_custom_theme(self):
@@ -372,23 +374,25 @@ class CS2ServerLauncher:
 
     def save_current_theme_as_preset(self):
         preset_name = tk.simpledialog.askstring("Save Theme Preset", "Enter a name for the new theme preset:")
-        if preset_name:
-            if preset_name in self.custom_presets:
-                if not messagebox.askyesno("Overwrite Preset", f"Preset '{preset_name}' already exists. Do you want to overwrite it?"):
-                    return
+        if not preset_name:
+            return
+        
+        if preset_name in self.custom_presets:
+            if not messagebox.askyesno("Overwrite Preset", f"Preset '{preset_name}' already exists. Do you want to overwrite it?"): return
 
-            theme_data = {
-                "is_dark_mode": self.is_dark_mode,
-                "colors": self.current_theme_colors # Save the currently active colors
-            }
-            if self.custom_colors.get("light") or self.custom_colors.get("dark"):
-                theme_data["custom_colors"] = self.custom_colors # Save custom modifications if any
+        theme_data = {
+            "is_dark_mode": self.is_dark_mode,
+            "colors": self.current_theme_colors # Save the currently active colors
+        }
 
-            self.custom_presets[preset_name] = theme_data
-            self.save_custom_presets()
-            self.update_preset_theme_menu()
-            self.append_to_log(f"Theme preset '{preset_name}' saved.")
-            messagebox.showinfo("Save Preset", f"Theme preset '{preset_name}' saved successfully!")
+        if self.custom_colors.get("light") or self.custom_colors.get("dark"):
+            theme_data["custom_colors"] = self.custom_colors # Save custom modifications if any
+
+        self.custom_presets[preset_name] = theme_data
+        self.save_custom_presets()
+        self.update_preset_theme_menu()
+        self.append_to_log(f"Theme preset '{preset_name}' saved.")
+        messagebox.showinfo("Save Preset", f"Theme preset '{preset_name}' saved successfully!")
 
     def load_custom_presets(self):
         try:
@@ -411,12 +415,16 @@ class CS2ServerLauncher:
             self.apply_theme(False)
             self.current_preset_name = "Default Light"
             self.append_to_log("Applied 'Default Light' theme preset.")
-        elif preset_name == "Default Dark":
+            return True
+
+        if preset_name == "Default Dark":
             self.is_dark_mode = True
             self.custom_colors = {"light": {}, "dark": {}} # Clear custom colors
             self.apply_theme(True)
             self.current_preset_name = "Default Dark"
             self.append_to_log("Applied 'Default Dark' theme preset.")
+            return True
+        
         elif preset_name and preset_name in self.custom_presets:
             preset_data = self.custom_presets[preset_name]
             self.is_dark_mode = preset_data.get("is_dark_mode", False)
@@ -431,23 +439,28 @@ class CS2ServerLauncher:
             
             # Now, explicitly apply the saved colors from the preset, overwriting defaults if needed.
             # This ensures that even if custom_colors were not explicitly saved, the exact colors of the preset are restored.
-            if "colors" in preset_data:
-                # The 'colors' key in preset_data should contain the final resolved colors when it was saved.
-                # We can apply these directly, or merge them. For simplicity and correctness in restoring,
-                # we'll update the current_theme_colors with these values and then re-apply.
-                if self.is_dark_mode:
-                    self.current_theme_colors.update(preset_data["colors"])
-                else:
-                    self.current_theme_colors.update(preset_data["colors"])
-                self.apply_theme(self.is_dark_mode) # Re-apply to ensure all widgets get the exact saved colors
+            if not "colors" in preset_data:
+                self.append_to_log(f"[ERROR] An error has occured while applying '{preset_name}' theme to the ui,")
+                self.append_to_log(f"        no color data has been found.")
+                return False
+
+            # The 'colors' key in preset_data should contain the final resolved colors when it was saved.
+            # We can apply these directly, or merge them. For simplicity and correctness in restoring,
+            # we'll update the current_theme_colors with these values and then re-apply.
+            if self.is_dark_mode:
+                self.current_theme_colors.update(preset_data["colors"])
+            else:
+                self.current_theme_colors.update(preset_data["colors"])
+            self.apply_theme(self.is_dark_mode) # Re-apply to ensure all widgets get the exact saved colors
 
             self.current_preset_name = preset_name
             self.append_to_log(f"Applied theme preset: '{preset_name}'.")
-        else:
-            # Fallback for when no preset name is provided or it's not found
-            # This might happen on initial load if config specifies an unknown preset
-            self.apply_theme(self.is_dark_mode)
-            self.append_to_log(f"Applied default theme (Dark Mode: {self.is_dark_mode}).")
+            return True
+        
+        # Fallback for when no preset name is provided or it's not found
+        # This might happen on initial load if config specifies an unknown preset
+        self.apply_theme(self.is_dark_mode)
+        self.append_to_log(f"Applied default theme (Dark Mode: {self.is_dark_mode}).")
 
 
     def delete_theme_preset(self):
@@ -479,17 +492,21 @@ class CS2ServerLauncher:
 
         def confirm_delete():
             selected_indices = listbox.curselection()
-            if selected_indices:
-                selected_preset_name = listbox.get(selected_indices[0])
-                if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the preset '{selected_preset_name}'?"):
-                    del self.custom_presets[selected_preset_name]
-                    self.save_custom_presets()
-                    self.update_preset_theme_menu()
-                    self.append_to_log(f"Theme preset '{selected_preset_name}' deleted.")
-                    messagebox.showinfo("Delete Preset", f"Preset '{selected_preset_name}' deleted successfully!")
-                    dialog.destroy()
-            else:
+            if not selected_indices:
                 messagebox.showwarning("No Selection", "Please select a preset to delete.")
+                return
+            
+            selected_preset_name = listbox.get(selected_indices[0])
+
+            if not messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the preset '{selected_preset_name}'?"):
+                return
+            
+            del self.custom_presets[selected_preset_name]
+            self.save_custom_presets()
+            self.update_preset_theme_menu()
+            self.append_to_log(f"Theme preset '{selected_preset_name}' deleted.")
+            messagebox.showinfo("Delete Preset", f"Preset '{selected_preset_name}' deleted successfully!")
+            dialog.destroy()
 
         ttk.Button(dialog, text="Delete Selected", command=confirm_delete).pack(pady=10)
         dialog.wait_window() # Wait for the dialog to close
@@ -507,29 +524,41 @@ class CS2ServerLauncher:
             title="Select cs2.exe",
             filetypes=[("CS2 Executable", "cs2.exe")]
         )
-        if filepath:
-            # Check if the selected path is indeed cs2.exe in the expected directory structure
-            # e.g., .../Steam/steamapps/common/Counter-Strike Global Offensive/game/bin/win64/cs2.exe
-            expected_tail = os.path.join("game", "bin", "win64", "cs2.exe")
-            if expected_tail in filepath:
-                self.path_entry.delete(0, tk.END)
-                self.path_entry.insert(0, filepath)
-                self.append_to_log(f"CS2 path set to: {filepath}")
-            else:
-                messagebox.showwarning("Invalid Path", "Please select the 'cs2.exe' file located in '...Counter-Strike Global Offensive\\game\\bin\\win64\\'.")
-                self.append_to_log(f"Invalid path selected: {filepath}")
+        if not filepath:
+            return
+
+        # disgusting way to convert Unix and Windows separator to user's system separator
+        # #sorry ~ Loé <3
+        filepath = filepath.replace("/", os.path.sep)
+        filepath = filepath.replace("\\", os.path.sep)
+
+        # Check if the selected path is indeed cs2.exe in the expected directory structure
+        # e.g., .../Steam/steamapps/common/Counter-Strike Global Offensive/game/bin/win64/cs2.exe
+        expected_tail = os.path.join("game", "bin", "win64", "cs2.exe")
+
+        if not expected_tail in filepath:
+            messagebox.showwarning("Invalid Path", "Please select the 'cs2.exe' file located in '...Counter-Strike Global Offensive\\game\\bin\\win64\\'.")
+            self.append_to_log(f"Invalid path selected: {filepath}")
+            return
+        
+        self.path_entry.delete(0, tk.END)
+        self.path_entry.insert(0, filepath)
+        self.append_to_log(f"CS2 path set to: {filepath}")
 
     def auto_detect_cs2_path(self):
         self.append_to_log("Attempting to autodetect CS2 path...")
         try:
             cs2_path = auto_detect_cs2_path(log_callback=self.append_to_log)
-            if cs2_path:
-                self.path_entry.delete(0, tk.END)
-                self.path_entry.insert(0, cs2_path)
-                self.append_to_log(f"Autodetected CS2 path: {cs2_path}")
-            else:
+            if not cs2_path:
                 messagebox.showwarning("Autodetect Failed", "Could not automatically detect CS2 path. Please browse manually.")
                 self.append_to_log("CS2 path autodetect failed.")
+                return
+            
+            self.path_entry.delete(0, tk.END)
+            self.path_entry.insert(0, cs2_path)
+            self.append_to_log(f"Autodetected CS2 path: {cs2_path}")
+            return
+        
         except Exception as e:
             messagebox.showerror("Autodetect Error", f"An error occurred during autodetect: {e}")
             self.append_to_log(f"Error during autodetect: {e}")
@@ -537,6 +566,7 @@ class CS2ServerLauncher:
 
     def start_server(self):
         cs2_exe_path = self.path_entry.get()
+        
         if not cs2_exe_path or not os.path.exists(cs2_exe_path):
             messagebox.showerror("Error", "Invalid CS2 server executable path.")
             self.append_to_log("Error: Invalid CS2 server executable path.")
@@ -546,7 +576,7 @@ class CS2ServerLauncher:
             messagebox.showinfo("Info", "Server is already running.")
             self.append_to_log("Server is already running.")
             return
-
+        
         # Construct command
         # Example: C:\Steam\steamapps\common\Counter-Strike Global Offensive\game\bin\win64\cs2.exe -dedicated -console +map de_dust2 +game_type 0 +game_mode 1
         
@@ -560,10 +590,10 @@ class CS2ServerLauncher:
         # where the 'game' folder resides.
         
         map_name = self.map_var.get()
-        game_mode = self.gamemode_dropdown.get()
+        game_mode = self.gamemode_var.get()
         max_players = self.max_players_entry.get()
-        port = self.port_entry.get()
         rcon_password = self.rcon_password_entry.get()
+        port = self.port_entry.get()
         server_name = self.server_name_entry.get()
         additional_args = self.additional_args_entry.get()
 
@@ -601,6 +631,7 @@ class CS2ServerLauncher:
             command.extend(shlex.split(additional_args)) # Split additional args safely
 
         try:
+
             self.append_to_log(f"Starting server with command: {' '.join(command)}")
             # Use preexec_fn=os.setsid to create a new process group on Unix-like systems
             # This makes it easier to terminate the process and its children.
@@ -643,40 +674,55 @@ class CS2ServerLauncher:
 
 
     def stop_server(self):
-        if self.server_process and self.server_process.poll() is None:
-            self.append_to_log("Stopping server...")
-            try:
-                # Terminate the process group to ensure all child processes are stopped
-                if os.name == 'nt':
-                    # On Windows, use taskkill with /F (force) and /T (tree kill) on the process group ID
-                    subprocess.run(f"taskkill /F /T /PID {self.server_process.pid}", shell=True, check=True,
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                else:
-                    # On Unix-like systems, kill the process group
-                    os.killpg(os.getpgid(self.server_process.pid), signal.SIGTERM) # SIGTERM for graceful shutdown
-                    time.sleep(1) # Give it a moment
-                    if self.server_process.poll() is None: # If still running, force kill
-                        os.killpg(os.getpgid(self.server_process.pid), signal.SIGKILL)
-
-
-                self.stop_log_thread.set() # Signal the log reading thread to stop
-                if self.output_log_thread and self.output_log_thread.is_alive():
-                    self.output_log_thread.join(timeout=5) # Wait for thread to finish
-
-                self.server_process.wait(timeout=5) # Wait for process to terminate
-                self.append_to_log("Server stopped.")
-                messagebox.showinfo("Server Control", "Server stopped successfully.")
-
-            except Exception as e:
-                self.append_to_log(f"Error stopping server: {e}")
-                messagebox.showerror("Error", f"Failed to stop server: {e}")
-            finally:
-                self.server_process = None
-                self.start_button.config(state=tk.NORMAL)
-                self.stop_button.config(state=tk.DISABLED)
-        else:
+        if not self.server_process and not (self.server_process.poll() is None):
             self.append_to_log("No server is currently running.")
             messagebox.showinfo("Info", "No server is currently running.")
+            return
+
+        self.append_to_log("Stopping server...")
+        try:
+            self.server_process.kill()
+
+            self.stop_log_thread.set() # Signal the log reading thread to stop
+            if self.output_log_thread and self.output_log_thread.is_alive():
+                self.output_log_thread.join(timeout=5) # Wait for thread to finish
+
+            self.server_process.wait(timeout=5) # Wait for process to terminate
+
+            if self.server_process.poll() is None:
+                self.append_to_log("could not stop the server.")
+                return
+
+            self.append_to_log("Server stopped.")
+            messagebox.showinfo("Server Control", "Server stopped successfully.")
+
+            # # Terminate the process group to ensure all child processes are stopped
+            # if os.name == 'nt':
+            #     # On Windows, use taskkill with /F (force) and /T (tree kill) on the process group ID
+            #     subprocess.run(f"taskkill /F /T /PID {self.server_process.pid}", shell=True, check=True,
+            #                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # else:
+            #     # On Unix-like systems, kill the process group
+            #     os.killpg(os.getpgid(self.server_process.pid), signal.SIGTERM) # SIGTERM for graceful shutdown
+            #     time.sleep(1) # Give it a moment
+            #     if self.server_process.poll() is None: # If still running, force kill
+            #         os.killpg(os.getpgid(self.server_process.pid), signal.SIGKILL)
+
+            # self.stop_log_thread.set() # Signal the log reading thread to stop
+            # if self.output_log_thread and self.output_log_thread.is_alive():
+            #     self.output_log_thread.join(timeout=5) # Wait for thread to finish
+
+            # self.server_process.wait(timeout=5) # Wait for process to terminate
+            # self.append_to_log("Server stopped.")
+            # messagebox.showinfo("Server Control", "Server stopped successfully.")
+
+        except Exception as e:
+            self.append_to_log(f"Error stopping server: {e}")
+            messagebox.showerror("Error", f"Failed to stop server: {e}")
+        finally:
+            self.server_process = None
+            self.start_button.config(state=tk.NORMAL)
+            self.stop_button.config(state=tk.DISABLED)
 
 
     def save_config(self):

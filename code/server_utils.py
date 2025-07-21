@@ -92,38 +92,48 @@ def auto_detect_cs2_path(log_callback=None):
         
         # Check default steamapps location
         steamapps_path = os.path.join(steam_path, "steamapps")
-        if os.path.exists(steamapps_path):
-            vdf_path = os.path.join(steamapps_path, "libraryfolders.vdf")
-            
-            # Get additional library folders
-            library_folders = [steamapps_path]
-            if os.path.exists(vdf_path):
-                library_folders.extend(_parse_library_folders_vdf(vdf_path, log_callback))
-            
-            for lib_path in set(library_folders): # Use set to avoid duplicates
-                cleaned_lib_path = lib_path.replace('\\\\', '\\') # Normalize path
-                cs2_appmanifest_path = os.path.join(cleaned_lib_path, "steamapps", "appmanifest_730.acf")
+        if not os.path.exists(steamapps_path):
+            print("t")
+            continue
 
-                if os.path.exists(cs2_appmanifest_path):
-                    if log_callback:
-                        log_callback(f"Found appmanifest_730.acf at: {cs2_appmanifest_path}")
-                    cs2_install_dir = _parse_appmanifest_acf(cs2_appmanifest_path, log_callback)
-                    if cs2_install_dir:
-                        potential_exe_path = os.path.join(
-                            cleaned_lib_path,
-                            "steamapps",
-                            "common",
-                            cs2_install_dir,
-                            "game",
-                            "bin",
-                            "win64",
-                            "cs2.exe"
-                        )
-                        if os.path.exists(potential_exe_path):
-                            found_path = potential_exe_path
-                            break # Found it, exit inner loop
-            if found_path:
-                break # Found it, exit outer loop
+        vdf_path = os.path.join(steamapps_path, "libraryfolders.vdf")
+        
+        # Get additional library folders
+        library_folders = [steamapps_path]
+        if os.path.exists(vdf_path):
+            library_folders.extend(_parse_library_folders_vdf(vdf_path, log_callback))
+        
+        for lib_path in set(library_folders): # Use set to avoid duplicates
+            cleaned_lib_path = lib_path.replace('\\\\', '\\') # Normalize path
+            cs2_appmanifest_path = os.path.join(cleaned_lib_path, "steamapps", "appmanifest_730.acf")
+
+            if not os.path.exists(cs2_appmanifest_path):
+                continue
+
+            if log_callback:
+                log_callback(f"Found appmanifest_730.acf at: {cs2_appmanifest_path}")
+
+            cs2_install_dir = _parse_appmanifest_acf(cs2_appmanifest_path, log_callback)
+            if not cs2_install_dir:
+                continue
+
+            potential_exe_path = os.path.join(
+                cleaned_lib_path,
+                "steamapps",
+                "common",
+                cs2_install_dir,
+                "game",
+                "bin",
+                "win64",
+                "cs2.exe"
+            )
+            if os.path.exists(potential_exe_path):
+                found_path = potential_exe_path
+                break # Found it, exit inner loop
+        if found_path:
+            break # Found it, exit outer loop
+        
+    log_callback(found_path)
     return found_path
 
 
